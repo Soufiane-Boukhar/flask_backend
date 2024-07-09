@@ -22,11 +22,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 func dataHandler(w http.ResponseWriter, r *http.Request) {
     dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s",
-        os.Getenv("avnadmin"),
-        os.Getenv("AVNS_wWoRjEZRmFF5NgjGCcY"),
-        os.Getenv("mysql-1fb82b3b-boukhar-d756.e.aivencloud.com"),
-        os.Getenv("defaultdb"),
-    )
+    os.Getenv("avnadmin"),
+    os.Getenv("AVNS_wWoRjEZRmFF5NgjGCcY"),
+    os.Getenv("mysql-1fb82b3b-boukhar-d756.e.aivencloud.com"),
+    os.Getenv("defaultdb"),
+)
 
     db, err := sql.Open("mysql", dsn)
     if err != nil {
