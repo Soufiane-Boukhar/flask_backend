@@ -17,7 +17,7 @@ class Contact(db.Model):
     subject = db.Column(db.String(255))
     message = db.Column(db.String(255))
 
-@app.route('/api/contacts', methods=['GET'])
+@app.route('/contacts', methods=['GET'])
 def get_contacts():
     try:
         contacts = Contact.query.all()
@@ -29,7 +29,7 @@ def get_contacts():
 def method_not_allowed(error):
     return jsonify({'error': 'Method Not Allowed'}), 405
 
-@app.route('/api/', methods=['GET'])
+@app.route('/', methods=['GET'])
 def home():
     return "hello world"
 
