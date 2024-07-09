@@ -1,9 +1,10 @@
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
+import os
 
 app = Flask(__name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_wWoRjEZRmFF5NgjGCcY@mysql-1fb82b3b-boukhar-d756.e.aivencloud.com:20744/defaultdb'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -16,13 +17,10 @@ class Contact(db.Model):
     subject = db.Column(db.String(255))
     message = db.Column(db.String(255))
 
-
-
-@app.route('/contacts', methods=['GET'])
+@app.route('/api/contacts', methods=['GET'])
 def get_contacts():
     try:
         contacts = Contact.query.all()
-
         return jsonify({'contacts': [{'id': contact.id, 'full_name': contact.full_name, 'email': contact.email, 'subject': contact.subject, 'message': contact.message} for contact in contacts]})
     except Exception as e:
         return jsonify({'error': 'Database query error', 'details': str(e)}), 500
@@ -31,12 +29,9 @@ def get_contacts():
 def method_not_allowed(error):
     return jsonify({'error': 'Method Not Allowed'}), 405
 
-
-
-
-@app.route('/', methods=['GET'])
-def Home():
-   return "hello world"
+@app.route('/api/', methods=['GET'])
+def home():
+    return "hello world"
 
 if __name__ == '__main__':
     app.run(debug=True)
