@@ -1,11 +1,10 @@
-package handler
+package main
 
 import (
     "encoding/json"
     "fmt"
     "net/http"
     "os"
-    "github.com/go-sql-driver/mysql"
     "database/sql"
 )
 
