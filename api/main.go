@@ -14,7 +14,7 @@ type Response struct {
     Data    interface{} `json:"data,omitempty"`
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
+func indexHandler(w http.ResponseWriter, r *http.Request) {
     response := Response{Message: "Hello, World!"}
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(response)
@@ -22,11 +22,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 func dataHandler(w http.ResponseWriter, r *http.Request) {
     dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s",
-    os.Getenv("avnadmin"),
-    os.Getenv("AVNS_wWoRjEZRmFF5NgjGCcY"),
-    os.Getenv("mysql-1fb82b3b-boukhar-d756.e.aivencloud.com"),
-    os.Getenv("defaultdb"),
-)
+        os.Getenv("avnadmin"),
+        os.Getenv("AVNS_wWoRjEZRmFF5NgjGCcY"),
+        os.Getenv("mysql-1fb82b3b-boukhar-d756.e.aivencloud.com"),
+        os.Getenv("defaultdb"),
+    )
 
     db, err := sql.Open("mysql", dsn)
     if err != nil {
@@ -64,8 +64,13 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(response)
 }
 
-func main() {
-    http.HandleFunc("/", handler)
-    http.HandleFunc("/data", dataHandler)
-    http.ListenAndServe(":3000", nil)
+func Handler(w http.ResponseWriter, r *http.Request) {
+    switch r.URL.Path {
+    case "/":
+        indexHandler(w, r)
+    case "/data":
+        dataHandler(w, r)
+    default:
+        http.NotFound(w, r)
+    }
 }
