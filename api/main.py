@@ -1,5 +1,6 @@
 import os
 import logging
+import time
 from flask import Flask, jsonify
 import mysql.connector
 
@@ -17,19 +18,29 @@ def index():
 def get_data():
     app.logger.debug('Data route called')
     try:
+        start_time = time.time()
+        
+        # Establish database connection
         connection = mysql.connector.connect(
             host='mysql-1fb82b3b-boukhar-d756.e.aivencloud.com',
             user='avnadmin',
             password='AVNS_wWoRjEZRmFF5NgjGCcY',
             database='defaultdb'
         )
+        app.logger.debug(f'Database connection established in {time.time() - start_time} seconds')
+        
         cursor = connection.cursor()
-        app.logger.debug('Database connection established')
-        cursor.execute("SELECT * FROM contacts LIMIT 10") 
+        
+        # Execute the query
+        query_start_time = time.time()
+        cursor.execute("SELECT * FROM contacts LIMIT 10")
         result = cursor.fetchall()
-        app.logger.debug('Query executed successfully')
+        app.logger.debug(f'Query executed in {time.time() - query_start_time} seconds')
+        
         cursor.close()
         connection.close()
+        
+        app.logger.debug(f'Total time for /data route: {time.time() - start_time} seconds')
         return jsonify(result)
     except mysql.connector.Error as err:
         app.logger.error(f'Database error: {err}')
