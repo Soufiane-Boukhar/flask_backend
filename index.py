@@ -33,5 +33,6 @@ def method_not_allowed(error):
 def home():
     return "hello world"
 
+
 if __name__ == '__main__':
     app.run(debug=True)
