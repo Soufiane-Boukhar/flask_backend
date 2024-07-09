@@ -8,7 +8,7 @@ app = Flask(__name__)
 def index():
     return jsonify({'message': 'Hello, World!'})
 
-@app.route('/data')
+@app.route('/data',methods=['GET'])
 def get_data():
     connection = mysql.connector.connect(
         host='mysql-1fb82b3b-boukhar-d756.e.aivencloud.com',
