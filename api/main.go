@@ -74,3 +74,9 @@ func Handler(w http.ResponseWriter, r *http.Request) {
         http.NotFound(w, r)
     }
 }
+
+func main() {
+    http.HandleFunc("/", Handler)
+    http.HandleFunc("/data", Handler)
+    http.ListenAndServe(":3000", nil)
+}
