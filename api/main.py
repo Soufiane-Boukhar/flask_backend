@@ -232,7 +232,7 @@ async def import_excel(file: UploadFile = File(...)):
         df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
 
         # Replace NaN values with None
-        df = df.where(pd.notnull(df), None)
+        df = df.applymap(lambda x: None if pd.isna(x) else x)
 
         # Debugging information to check NaN replacement
         debug_info = {
