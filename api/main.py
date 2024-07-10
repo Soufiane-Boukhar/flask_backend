@@ -6,8 +6,8 @@ import logging
 from passlib.context import CryptContext
 import hmac
 import hashlib
-from datetime import datetime, timedelta
 import secrets
+from datetime import datetime, timedelta
 from typing import Optional
 
 app = FastAPI()
@@ -40,6 +40,17 @@ def create_hmac_token(data: dict) -> str:
     message = str(data).encode()
     return hmac.new(SECRET_KEY.encode(), message, hashlib.sha256).hexdigest()
 
+def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
+    """Create an access token using HMAC."""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = create_hmac_token(to_encode)
+    return encoded_jwt
+
 class UserCreate(BaseModel):
     name: str
     email: str
@@ -48,6 +59,24 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: str
     password: str
+
+class SuiverCreate(BaseModel):
+    name: str
+    activity: str
+    contact: str
+    type_of_property: str
+    budget: Optional[float] = None
+    area: Optional[float] = None
+    zone: Optional[str] = None
+    services_provided: Optional[str] = None
+    allocated_price: Optional[float] = None
+    closed_services: Optional[str] = None
+    services_to_close: Optional[str] = None
+    status: str
+    annexes: Optional[str] = None
+    forecast_revenue: Optional[float] = None
+    realized_revenue: Optional[float] = None
+    total_revenue: Optional[float] = None
 
 @app.get("/contacts")
 async def get_contacts():
@@ -112,8 +141,6 @@ async def register_user(user: UserCreate):
 
     return JSONResponse(content={"message": "User registered successfully"})
 
-
-
 @app.post("/login")
 async def login(user: UserLogin):
     try:
@@ -134,7 +161,6 @@ async def login(user: UserLogin):
                 if db_password is None or not verify_password(user.password, db_password[0]):
                     raise HTTPException(status_code=401, detail="Invalid credentials")
 
-                # Generate JWT token instead of HMAC token
                 access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
                 access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
 
@@ -145,7 +171,32 @@ async def login(user: UserLogin):
     return JSONResponse(content={"access_token": access_token})
 
 
+@app.post('/SuiverProjet')
+async def register_suiver(suiver: SuiverCreate):
+    try:
+        pool = await aiomysql.create_pool(
+            host=DB_CONFIG['host'],
+            port=DB_CONFIG['port'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            db=DB_CONFIG['db'],
+            ssl=DB_CONFIG['ssl'],
+            autocommit=DB_CONFIG['autocommit']
+        )
 
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute(
+                    'INSERT INTO suiver_projets (name, activity, contact, type_of_property, budget, area, zone, services_provided, allocated_price, closed_services, services_to_close, status, annexes, forecast_revenue, realized_revenue, total_revenue) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                    (suiver.name, suiver.activity, suiver.contact, suiver.type_of_property, suiver.budget, suiver.area, suiver.zone, suiver.services_provided, suiver.allocated_price, suiver.closed_services, suiver.services_to_close, suiver.status, suiver.annexes, suiver.forecast_revenue, suiver.realized_revenue, suiver.total_revenue)
+                )
+                await conn.commit()
+
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while registering the SuiverProjet: {e}")
+
+    return JSONResponse(content={"message": "SuiverProjet registered successfully"})
 
 from fastapi.middleware.cors import CORSMiddleware
 
