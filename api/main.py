@@ -257,11 +257,10 @@ async def object_import(suivers: List[SuiverCreate]):
                 await conn.commit()
 
     except Exception as e:
-        logging.error(f"Error: {e}")
+        logging.error(f"Error during database operation: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while importing the data: {e}")
 
     return JSONResponse(content={"message": "Projects registered successfully"})
-
          
 
 from fastapi.middleware.cors import CORSMiddleware
