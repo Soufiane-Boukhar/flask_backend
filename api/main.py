@@ -226,39 +226,36 @@ async def import_excel(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="File is required")
 
         # Read the file into a Pandas DataFrame
-        df = pd.read_excel(file.file, engine='openpyxl')
+        file_content = await file.read()  # Read file content asynchronously
+        df = pd.read_excel(io.BytesIO(file_content), engine='openpyxl')
 
         # Normalize column names
         df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
 
         # Replace NaN values with None
-        df = df.where(pd.notnull(df), None)
+        df = df.applymap(lambda x: None if pd.isna(x) else x)
 
-        # Debugging information to check NaN replacement
+        # Convert DataFrame to JSON
+        data_json = df.to_dict(orient='records')
+
+        # Debug information
         debug_info = {
             "null_counts": df.isnull().sum().to_dict(),
             "data_sample": df.head().to_dict(orient='records')
         }
 
-        # Convert DataFrame to JSON
-        data_json = df.to_dict(orient='records')
+        # Example: Log data being inserted
+        logging.debug(f"Data to be inserted: {data_json}")
 
-        # Log and return DataFrame content
-        response_content = {
-            "message": "Excel file imported successfully",
-            "data": data_json,
-            "debug_info": debug_info  # Include debug information in the response
-        }
-
-        # Establish database connection
+        # Simulate database insertion to help diagnose issues
         pool = await aiomysql.create_pool(
-            host=DB_CONFIG['host'],
-            port=DB_CONFIG['port'],
-            user=DB_CONFIG['user'],
-            password=DB_CONFIG['password'],
-            db=DB_CONFIG['db'],
-            ssl=DB_CONFIG['ssl'],
-            autocommit=DB_CONFIG['autocommit']
+            host='localhost',
+            port=3306,
+            user='user',
+            password='password',
+            db='database',
+            ssl=None,
+            autocommit=True
         )
 
         async with pool.acquire() as conn:
@@ -291,33 +288,44 @@ async def import_excel(file: UploadFile = File(...)):
                     }
 
                     # Log prepared data for debugging
-                    print("Prepared data for insertion:", suiver_data)
+                    logging.debug(f"Prepared data for insertion: {suiver_data}")
 
-                    # Insert the data into the database
-                    await cursor.execute(
-                        '''
-                        INSERT INTO project_tracking (
-                            representant, nom, mode_retour, activite, contact, type_bien, action, 
-                            budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures, 
-                            services_a_cloturer, ok_nok, annexes, ca_previsionnel, ca_realise, 
-                            total_ca, status, created_date, update_date
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ''',
-                        (
-                            suiver_data.get("representant"), suiver_data.get("nom"), suiver_data.get("mode_retour"), suiver_data.get("activite"), suiver_data.get("contact"),
-                            suiver_data.get("type_bien"), suiver_data.get("action"), suiver_data.get("budget"), suiver_data.get("superficie"), suiver_data.get("zone"),
-                            suiver_data.get("type_accompagnement"), suiver_data.get("prix_alloue"), suiver_data.get("services_clotures"),
-                            suiver_data.get("services_a_cloturer"), suiver_data.get("ok_nok"), suiver_data.get("annexes"), suiver_data.get("ca_previsionnel"),
-                            suiver_data.get("ca_realise"), suiver_data.get("total_ca"), suiver_data.get("status"), suiver_data.get("created_date"), suiver_data.get("update_date")
+                    try:
+                        # Insert the data into the database
+                        await cursor.execute(
+                            '''
+                            INSERT INTO project_tracking (
+                                representant, nom, mode_retour, activite, contact, type_bien, action, 
+                                budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures, 
+                                services_a_cloturer, ok_nok, annexes, ca_previsionnel, ca_realise, 
+                                total_ca, status, created_date, update_date
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            ''',
+                            (
+                                suiver_data.get("representant"), suiver_data.get("nom"), suiver_data.get("mode_retour"), suiver_data.get("activite"), suiver_data.get("contact"),
+                                suiver_data.get("type_bien"), suiver_data.get("action"), suiver_data.get("budget"), suiver_data.get("superficie"), suiver_data.get("zone"),
+                                suiver_data.get("type_accompagnement"), suiver_data.get("prix_alloue"), suiver_data.get("services_clotures"),
+                                suiver_data.get("services_a_cloturer"), suiver_data.get("ok_nok"), suiver_data.get("annexes"), suiver_data.get("ca_previsionnel"),
+                                suiver_data.get("ca_realise"), suiver_data.get("total_ca"), suiver_data.get("status"), suiver_data.get("created_date"), suiver_data.get("update_date")
+                            )
                         )
-                    )
+                    except Exception as db_err:
+                        # Log database-specific error
+                        logging.error(f"Database error occurred: {db_err}")
+                        raise HTTPException(status_code=500, detail=f"An error occurred while inserting data into the database: {db_err}")
 
                 await conn.commit()
 
     except Exception as e:
+        # Log general errors
+        logging.error(f"An error occurred: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while importing the Excel file: {e}")
 
-    return JSONResponse(content=response_content)
+    return JSONResponse(content={
+        "message": "Excel file imported successfully",
+        "data": data_json,
+        "debug_info": debug_info
+    })
 
 from fastapi.middleware.cors import CORSMiddleware
 
