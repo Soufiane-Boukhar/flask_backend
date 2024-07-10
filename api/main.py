@@ -219,34 +219,10 @@ async def register_suiver(suiver: SuiverCreate):
 
     return JSONResponse(content={"message": "Project registered successfully"})
 
-@app.post('/import-excel')
-async def import_excel(file: UploadFile = File(...)):
+
+@app.post('/objectImport')
+async def object_import(suivers: List[SuiverCreate]):
     try:
-        if not file:
-            raise HTTPException(status_code=400, detail="File is required")
-
-        # Read the file into a Pandas DataFrame
-        file_content = await file.read()  # Read file content asynchronously
-        df = pd.read_excel(io.BytesIO(file_content), engine='openpyxl')
-
-        # Normalize column names
-        df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
-
-        # Replace NaN values with None
-        df = df.applymap(lambda x: None if pd.isna(x) else x)
-
-        # Convert DataFrame to JSON
-        data_json = df.to_dict(orient='records')
-
-        # Debug information
-        debug_info = {
-            "null_counts": df.isnull().sum().to_dict(),
-            "data_sample": df.head().to_dict(orient='records')
-        }
-
-        # Log data being inserted
-        logging.debug(f"Data to be inserted: {data_json}")
-
         # Establish database connection
         pool = await aiomysql.create_pool(
             host=DB_CONFIG['host'],
@@ -260,71 +236,33 @@ async def import_excel(file: UploadFile = File(...)):
 
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
-                for row in df.itertuples(index=False):
-                    suiver_data = {
-                        "representant": getattr(row, "representant", None),
-                        "nom": getattr(row, "nom", None),
-                        "mode_retour": getattr(row, "mode_retour", None),
-                        "activite": getattr(row, "activite", None),
-                        "contact": getattr(row, "contact", None),
-                        "type_bien": getattr(row, "type_bien", None),
-                        "action": getattr(row, "action", None),
-                        "budget": getattr(row, "budget", None),
-                        "superficie": getattr(row, "superficie", None),
-                        "zone": getattr(row, "zone", None),
-                        "type_accompagnement": getattr(row, "type_accompagnement", None),
-                        "prix_alloue": getattr(row, "prix_alloue", None),
-                        "services_clotures": getattr(row, "services_clotures", None),
-                        "services_a_cloturer": getattr(row, "services_a_cloturer", None),
-                        "ok_nok": getattr(row, "ok_nok", None),
-                        "annexes": getattr(row, "annexes", None),
-                        "ca_previsionnel": getattr(row, "ca_previsionnel", None),
-                        "ca_realise": getattr(row, "ca_realise", None),
-                        "total_ca": getattr(row, "total_ca", None),
-                        "status": getattr(row, "status", None),
-                        "created_date": getattr(row, "created_date", None),
-                        "update_date": getattr(row, "update_date", None),
-                    }
-
-                    # Log prepared data for debugging
-                    logging.debug(f"Prepared data for insertion: {suiver_data}")
-
-                    try:
-                        # Insert the data into the database
-                        await cursor.execute(
-                            '''
-                            INSERT INTO project_tracking (
-                                representant, nom, mode_retour, activite, contact, type_bien, action, 
-                                budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures, 
-                                services_a_cloturer, ok_nok, annexes, ca_previsionnel, ca_realise, 
-                                total_ca, status, created_date, update_date
-                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                            ''',
-                            (
-                                suiver_data.get("representant"), suiver_data.get("nom"), suiver_data.get("mode_retour"), suiver_data.get("activite"), suiver_data.get("contact"),
-                                suiver_data.get("type_bien"), suiver_data.get("action"), suiver_data.get("budget"), suiver_data.get("superficie"), suiver_data.get("zone"),
-                                suiver_data.get("type_accompagnement"), suiver_data.get("prix_alloue"), suiver_data.get("services_clotures"),
-                                suiver_data.get("services_a_cloturer"), suiver_data.get("ok_nok"), suiver_data.get("annexes"), suiver_data.get("ca_previsionnel"),
-                                suiver_data.get("ca_realise"), suiver_data.get("total_ca"), suiver_data.get("status"), suiver_data.get("created_date"), suiver_data.get("update_date")
-                            )
+                for suiver in suivers:
+                    await cursor.execute(
+                        '''
+                        INSERT INTO project_tracking (
+                            representant, nom, mode_retour, activite, contact, type_bien, action, 
+                            budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures, 
+                            services_a_cloturer, ok_nok, annexes, ca_previsionnel, ca_realise, 
+                            total_ca, status, created_date, update_date
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ''',
+                        (
+                            suiver.representant, suiver.nom, suiver.mode_retour, suiver.activite, suiver.contact,
+                            suiver.type_bien, suiver.action, suiver.budget, suiver.superficie, suiver.zone,
+                            suiver.type_accompagnement, suiver.prix_alloue, suiver.services_clotures,
+                            suiver.services_a_cloturer, suiver.ok_nok, suiver.annexes, suiver.ca_previsionnel,
+                            suiver.ca_realise, suiver.total_ca, suiver.status, suiver.created_date, suiver.update_date
                         )
-                    except Exception as db_err:
-                        logging.error(f"Database error occurred: {db_err}")
-                        raise HTTPException(status_code=500, detail=f"An error occurred while inserting data into the database: {db_err}")
-
+                    )
                 await conn.commit()
 
     except Exception as e:
-        # Log general errors
-        logging.error(f"An error occurred: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred while importing the Excel file: {e}")
+        logging.error(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while importing the data: {e}")
 
-    return JSONResponse(content={
-        "message": "Excel file imported successfully",
-        "data": data_json,
-        "debug_info": debug_info
-    })
+    return JSONResponse(content={"message": "Projects registered successfully"})
 
+         
 
 from fastapi.middleware.cors import CORSMiddleware
 
