@@ -61,22 +61,29 @@ class UserLogin(BaseModel):
     password: str
 
 class SuiverCreate(BaseModel):
-    name: str
-    activity: str
+    representant: str
+    nom: str
+    mode_retour: str
+    activite: str
     contact: str
-    type_of_property: str
+    type_bien: str
+    action: str
     budget: Optional[float] = None
-    area: Optional[float] = None
+    superficie: Optional[float] = None
     zone: Optional[str] = None
-    services_provided: Optional[str] = None
-    allocated_price: Optional[float] = None
-    closed_services: Optional[str] = None
-    services_to_close: Optional[str] = None
-    status: str
+    type_accompagnement: Optional[str] = None
+    prix_alloue: Optional[float] = None
+    services_clotures: Optional[str] = None
+    services_a_cloturer: Optional[str] = None
+    ok_nok: str
     annexes: Optional[str] = None
-    forecast_revenue: Optional[float] = None
-    realized_revenue: Optional[float] = None
-    total_revenue: Optional[float] = None
+    ca_previsionnel: Optional[float] = None
+    ca_realise: Optional[float] = None
+    total_ca: Optional[float] = None
+    status: str
+    created_date: str
+    update_date: str
+
 
 @app.get("/contacts")
 async def get_contacts():
