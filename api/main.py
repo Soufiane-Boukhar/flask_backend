@@ -245,24 +245,23 @@ async def import_excel(file: UploadFile = File(...)):
             "data_sample": df.head().to_dict(orient='records')
         }
 
-        # Example: Log data being inserted
+        # Log data being inserted
         logging.debug(f"Data to be inserted: {data_json}")
 
-        # Simulate database insertion to help diagnose issues
+        # Establish database connection
         pool = await aiomysql.create_pool(
-            host='localhost',
-            port=3306,
-            user='user',
-            password='password',
-            db='database',
-            ssl=None,
-            autocommit=True
+            host=DB_CONFIG['host'],
+            port=DB_CONFIG['port'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            db=DB_CONFIG['db'],
+            ssl=DB_CONFIG['ssl'],
+            autocommit=DB_CONFIG['autocommit']
         )
 
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 for row in df.itertuples(index=False):
-                    # Prepare the data
                     suiver_data = {
                         "representant": getattr(row, "representant", None),
                         "nom": getattr(row, "nom", None),
@@ -292,9 +291,9 @@ async def import_excel(file: UploadFile = File(...)):
                     logging.debug(f"Prepared data for insertion: {suiver_data}")
 
                     try:
-                        # Check for any remaining NaN values in prepared data
-                        if any(value is pd.NaT or pd.isna(value) for value in suiver_data.values()):
-                            raise ValueError("Prepared data contains NaN or NaT values.")
+                        # Check for any remaining NaN or None values in prepared data
+                        if any(value is None for value in suiver_data.values()):
+                            raise ValueError("Prepared data contains None values.")
 
                         # Insert the data into the database
                         await cursor.execute(
