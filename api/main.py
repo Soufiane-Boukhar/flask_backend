@@ -290,11 +290,15 @@ async def import_excel(file: UploadFile = File(...)):
                     # Log prepared data for debugging
                     logging.debug(f"Prepared data for insertion: {suiver_data}")
 
-                    try:
-                        # Check for any remaining None values in prepared data
-                        if any(value is None for value in suiver_data.values()):
-                            raise ValueError("Prepared data contains None values. Check columns for NULL constraints.")
+                    # Check for any remaining None values in prepared data
+                    if any(value is None for value in suiver_data.values()):
+                        # Detailed validation for each field
+                        missing_fields = [key for key, value in suiver_data.items() if value is None]
+                        error_message = f"Prepared data contains None values for fields: {', '.join(missing_fields)}. Check columns for NULL constraints."
+                        logging.error(f"Data validation error occurred: {error_message}")
+                        raise HTTPException(status_code=400, detail=error_message)
 
+                    try:
                         # Insert the data into the database
                         await cursor.execute(
                             '''
@@ -313,9 +317,6 @@ async def import_excel(file: UploadFile = File(...)):
                                 suiver_data.get("ca_realise"), suiver_data.get("total_ca"), suiver_data.get("status"), suiver_data.get("created_date"), suiver_data.get("update_date")
                             )
                         )
-                    except ValueError as ve:
-                        logging.error(f"Data validation error occurred: {ve}")
-                        raise HTTPException(status_code=400, detail=f"Data validation error: {ve}")
                     except Exception as db_err:
                         logging.error(f"Database error occurred: {db_err}")
                         raise HTTPException(status_code=500, detail=f"An error occurred while inserting data into the database: {db_err}")
