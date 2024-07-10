@@ -221,7 +221,7 @@ async def register_suiver(suiver: SuiverCreate):
 
 
 @app.post('/objectImport')
-async def object_import(suivers: List[SuiverCreate]):
+async def object_import(suivers: List[dict]):
     try:
         # Establish database connection
         pool = await aiomysql.create_pool(
@@ -236,24 +236,27 @@ async def object_import(suivers: List[SuiverCreate]):
 
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
+                values = []
                 for suiver in suivers:
-                    await cursor.execute(
-                        '''
-                        INSERT INTO project_tracking (
-                            representant, nom, mode_retour, activite, contact, type_bien, action, 
-                            budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures, 
-                            services_a_cloturer, ok_nok, annexes, ca_previsionnel, ca_realise, 
-                            total_ca, status, created_date, update_date
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ''',
-                        (
-                            suiver.representant, suiver.nom, suiver.mode_retour, suiver.activite, suiver.contact,
-                            suiver.type_bien, suiver.action, suiver.budget, suiver.superficie, suiver.zone,
-                            suiver.type_accompagnement, suiver.prix_alloue, suiver.services_clotures,
-                            suiver.services_a_cloturer, suiver.ok_nok, suiver.annexes, suiver.ca_previsionnel,
-                            suiver.ca_realise, suiver.total_ca, suiver.status, suiver.created_date, suiver.update_date
-                        )
-                    )
+                    values.append((
+                        suiver['representant'], suiver['nom'], suiver['mode_retour'], suiver['activite'], suiver['contact'],
+                        suiver['type_bien'], suiver['action'], suiver['budget'], suiver['superficie'], suiver['zone'],
+                        suiver['type_accompagnement'], suiver['prix_alloue'], suiver['services_clotures'],
+                        suiver['services_a_cloturer'], suiver['ok_nok'], suiver['annexes'], suiver['ca_previsionnel'],
+                        suiver['ca_realise'], suiver['total_ca'], suiver['status'], suiver['created_date'], suiver['update_date']
+                    ))
+                
+                await cursor.executemany(
+                    '''
+                    INSERT INTO project_tracking (
+                        representant, nom, mode_retour, activite, contact, type_bien, action, 
+                        budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures, 
+                        services_a_cloturer, ok_nok, annexes, ca_previsionnel, ca_realise, 
+                        total_ca, status, created_date, update_date
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ''',
+                    values
+                )
                 await conn.commit()
 
     except Exception as e:
@@ -261,7 +264,7 @@ async def object_import(suivers: List[SuiverCreate]):
         raise HTTPException(status_code=500, detail=f"An error occurred while importing the data: {e}")
 
     return JSONResponse(content={"message": "Projects registered successfully"})
-         
+
 
 from fastapi.middleware.cors import CORSMiddleware
 
