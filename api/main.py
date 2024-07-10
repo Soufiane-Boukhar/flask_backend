@@ -334,6 +334,7 @@ async def import_excel(file: UploadFile = File(...)):
         "debug_info": debug_info
     })
 
+
 from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
