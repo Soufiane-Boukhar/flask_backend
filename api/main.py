@@ -250,6 +250,8 @@ async def import_excel(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"An error occurred while importing the Excel file: {e}")
 
     return JSONResponse(content=response_content)
+
+    
 from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
