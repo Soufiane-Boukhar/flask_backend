@@ -222,32 +222,24 @@ async def register_suiver(suiver: SuiverCreate):
 @app.post('/import-excel')
 async def import_excel(file: UploadFile = File(...)):
     try:
-        # Log file information
-        logging.info(f"Received file: {file.filename}")
+        # Check if the file is uploaded
+        if not file:
+            raise HTTPException(status_code=400, detail="File is required")
 
         # Read the file into a Pandas DataFrame
         df = pd.read_excel(file.file, engine='openpyxl')
 
-        # Log DataFrame head to inspect the first few rows
-        logging.info(f"DataFrame head:\n{df.head()}")
-
         # Normalize column names
         df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
-        logging.info(f"Normalized columns: {df.columns.tolist()}")
 
-        # Define columns based on expected data schema (adjust as needed)
-        expected_columns = [
-            "representant", "nom", "mode_retour", "activite", "contact", "type_bien",
-            "action", "budget", "superficie", "zone", "type_accompagnement",
-            "prix_alloue", "services_clotures", "services_a_cloturer", "ok_nok",
-            "annexes", "ca_previsionnel", "ca_realise", "total_ca", "status",
-            "created_date", "update_date"
-        ]
+        # Convert DataFrame to JSON
+        data_json = df.to_dict(orient='records')
 
-        # Ensure all expected columns are present in the DataFrame
-        missing_columns = [col for col in expected_columns if col not in df.columns]
-        if missing_columns:
-            logging.warning(f"Missing columns in DataFrame: {missing_columns}")
+        # Log and return DataFrame content
+        response_content = {
+            "message": "Excel file imported successfully",
+            "data": data_json
+        }
 
         # Establish database connection
         pool = await aiomysql.create_pool(
@@ -262,42 +254,39 @@ async def import_excel(file: UploadFile = File(...)):
 
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
-                for _, row in df.iterrows():
-                    # Prepare the data with possible missing fields
+                for row in df.itertuples(index=False):
+                    # Prepare the data
                     suiver_data = {
-                        "representant": row.get("representant"),
-                        "nom": row.get("nom"),
-                        "mode_retour": row.get("mode_retour"),
-                        "activite": row.get("activite"),
-                        "contact": row.get("contact"),
-                        "type_bien": row.get("type_bien"),
-                        "action": row.get("action"),
-                        "budget": row.get("budget"),
-                        "superficie": row.get("superficie"),
-                        "zone": row.get("zone"),
-                        "type_accompagnement": row.get("type_accompagnement"),
-                        "prix_alloue": row.get("prix_alloue"),
-                        "services_clotures": row.get("services_clotures"),
-                        "services_a_cloturer": row.get("services_a_cloturer"),
-                        "ok_nok": row.get("ok_nok"),
-                        "annexes": row.get("annexes"),
-                        "ca_previsionnel": row.get("ca_previsionnel"),
-                        "ca_realise": row.get("ca_realise"),
-                        "total_ca": row.get("total_ca"),
-                        "status": row.get("status"),
-                        "created_date": row.get("created_date"),
-                        "update_date": row.get("update_date"),
+                        "representant": getattr(row, "representant", None),
+                        "nom": getattr(row, "nom", None),
+                        "mode_retour": getattr(row, "mode_retour", None),
+                        "activite": getattr(row, "activite", None),
+                        "contact": getattr(row, "contact", None),
+                        "type_bien": getattr(row, "type_bien", None),
+                        "action": getattr(row, "action", None),
+                        "budget": getattr(row, "budget", None),
+                        "superficie": getattr(row, "superficie", None),
+                        "zone": getattr(row, "zone", None),
+                        "type_accompagnement": getattr(row, "type_accompagnement", None),
+                        "prix_alloue": getattr(row, "prix_alloue", None),
+                        "services_clotures": getattr(row, "services_clotures", None),
+                        "services_a_cloturer": getattr(row, "services_a_cloturer", None),
+                        "ok_nok": getattr(row, "ok_nok", None),
+                        "annexes": getattr(row, "annexes", None),
+                        "ca_previsionnel": getattr(row, "ca_previsionnel", None),
+                        "ca_realise": getattr(row, "ca_realise", None),
+                        "total_ca": getattr(row, "total_ca", None),
+                        "status": getattr(row, "status", None),
+                        "created_date": getattr(row, "created_date", None),
+                        "update_date": getattr(row, "update_date", None),
                     }
-
-                    # Log the data to be inserted
-                    logging.debug(f"Inserting data: {suiver_data}")
 
                     # Insert the data into the database
                     await cursor.execute(
                         '''
                         INSERT INTO project_tracking (
-                            representant, nom, mode_retour, activite, contact, type_bien, action,
-                            budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures,
+                            representant, nom, mode_retour, activite, contact, type_bien, action, 
+                            budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures, 
                             services_a_cloturer, ok_nok, annexes, ca_previsionnel, ca_realise, 
                             total_ca, status, created_date, update_date
                         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -314,10 +303,9 @@ async def import_excel(file: UploadFile = File(...)):
                 await conn.commit()
 
     except Exception as e:
-        logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while importing the Excel file: {e}")
 
-    return {"message": "Excel file imported successfully"}
+    return JSONResponse(content=response_content)
 
 
 from fastapi.middleware.cors import CORSMiddleware
