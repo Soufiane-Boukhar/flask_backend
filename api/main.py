@@ -111,6 +111,8 @@ async def register_user(user: UserCreate):
 
     return JSONResponse(content={"message": "User registered successfully"})
 
+
+
 @app.post("/login")
 async def login(user: UserLogin):
     try:
@@ -131,13 +133,18 @@ async def login(user: UserLogin):
                 if db_password is None or not verify_password(user.password, db_password[0]):
                     raise HTTPException(status_code=401, detail="Invalid credentials")
 
-                hmac_token = create_hmac_token(data={"email": user.email, "timestamp": datetime.utcnow().isoformat()})
+                # Generate JWT token instead of HMAC token
+                access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+                access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
 
     except Exception as e:
         logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred during login: {e}")
 
-    return JSONResponse(content={"hmac_token": hmac_token})
+    return JSONResponse(content={"access_token": access_token})
+
+
+
 
 from fastapi.middleware.cors import CORSMiddleware
 
