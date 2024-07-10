@@ -221,10 +221,10 @@ async def register_suiver(suiver: SuiverCreate):
 
 
 @app.post('/objectImport')
-async def object_import(suivers: List[dict]):
+async def object_import(suivers: list[SuiverCreate]):
     try:
         # Establish database connection
-        pool = await aiomysql.create_pool(
+        async with aiomysql.create_pool(
             host=DB_CONFIG['host'],
             port=DB_CONFIG['port'],
             user=DB_CONFIG['user'],
@@ -232,32 +232,32 @@ async def object_import(suivers: List[dict]):
             db=DB_CONFIG['db'],
             ssl=DB_CONFIG['ssl'],
             autocommit=DB_CONFIG['autocommit']
-        )
+        ) as pool:
+            async with pool.acquire() as conn:
+                async with conn.cursor() as cursor:
+                    values = [
+                        (
+                            s.representant, s.nom, s.mode_retour, s.activite, s.contact,
+                            s.type_bien, s.action, s.budget, s.superficie, s.zone,
+                            s.type_accompagnement, s.prix_alloue, s.services_clotures,
+                            s.services_a_cloturer, s.ok_nok, s.annexes, s.ca_previsionnel,
+                            s.ca_realise, s.total_ca, s.status, s.created_date, s.update_date
+                        )
+                        for s in suivers
+                    ]
 
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                values = []
-                for suiver in suivers:
-                    values.append((
-                        suiver['representant'], suiver['nom'], suiver['mode_retour'], suiver['activite'], suiver['contact'],
-                        suiver['type_bien'], suiver['action'], suiver['budget'], suiver['superficie'], suiver['zone'],
-                        suiver['type_accompagnement'], suiver['prix_alloue'], suiver['services_clotures'],
-                        suiver['services_a_cloturer'], suiver['ok_nok'], suiver['annexes'], suiver['ca_previsionnel'],
-                        suiver['ca_realise'], suiver['total_ca'], suiver['status'], suiver['created_date'], suiver['update_date']
-                    ))
-                
-                await cursor.executemany(
-                    '''
-                    INSERT INTO project_tracking (
-                        representant, nom, mode_retour, activite, contact, type_bien, action, 
-                        budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures, 
-                        services_a_cloturer, ok_nok, annexes, ca_previsionnel, ca_realise, 
-                        total_ca, status, created_date, update_date
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ''',
-                    values
-                )
-                await conn.commit()
+                    await cursor.executemany(
+                        '''
+                        INSERT INTO project_tracking (
+                            representant, nom, mode_retour, activite, contact, type_bien, action, 
+                            budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures, 
+                            services_a_cloturer, ok_nok, annexes, ca_previsionnel, ca_realise, 
+                            total_ca, status, created_date, update_date
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ''',
+                        values
+                    )
+                    await conn.commit()
 
     except Exception as e:
         logging.error(f"Error during database operation: {e}")
