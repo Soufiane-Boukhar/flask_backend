@@ -13,7 +13,7 @@ import pandas as pd
 
 app = FastAPI()
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 DB_CONFIG = {
     'host': 'mysql-1fb82b3b-boukhar-d756.e.aivencloud.com',
@@ -222,11 +222,18 @@ async def register_suiver(suiver: SuiverCreate):
 @app.post('/import-excel')
 async def import_excel(file: UploadFile = File(...)):
     try:
+        # Log file information
+        logging.info(f"Received file: {file.filename}")
+
         # Read the file into a Pandas DataFrame
         df = pd.read_excel(file.file, engine='openpyxl')
 
+        # Log DataFrame head to inspect the first few rows
+        logging.info(f"DataFrame head:\n{df.head()}")
+
         # Ensure column names match the database schema and handle missing fields
         df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
+        logging.info(f"Normalized columns: {df.columns.tolist()}")
 
         # Establish database connection
         pool = await aiomysql.create_pool(
@@ -267,6 +274,9 @@ async def import_excel(file: UploadFile = File(...)):
                         "created_date": row.get("created_date"),
                         "update_date": row.get("update_date"),
                     }
+
+                    # Log the data to be inserted
+                    logging.debug(f"Inserting data: {suiver_data}")
 
                     # Insert the data into the database
                     await cursor.execute(
