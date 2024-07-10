@@ -1,17 +1,19 @@
-from flask import Flask, jsonify
-from flask_mysqldb import MySQL
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
 import os
 
 app = Flask(__name__)
 
-app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST', 'mysql-1fb82b3b-boukhar-d756.e.aivencloud.com')
-app.config['MYSQL_PORT'] = int(os.getenv('MYSQL_PORT', 20744))
-app.config['MYSQL_USER'] = os.getenv('MYSQL_USER', 'avnadmin')
-app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD', 'AVNS_wWoRjEZRmFF5NgjGCcY')
-app.config['MYSQL_DB'] = os.getenv('MYSQL_DB', 'defaultdb')
+app.config['SQLALCHEMY_DATABASE_URI'] = (
+    f"mysql+pymysql://{os.getenv('MYSQL_USER', 'avnadmin')}:"
+    f"{os.getenv('MYSQL_PASSWORD', 'AVNS_wWoRjEZRmFF5NgjGCcY')}@"
+    f"{os.getenv('MYSQL_HOST', 'mysql-1fb82b3b-boukhar-d756.e.aivencloud.com')}:"
+    f"{os.getenv('MYSQL_PORT', '20744')}/"
+    f"{os.getenv('MYSQL_DB', 'defaultdb')}"
+)
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-
-mysql = MySQL(app)
+db = SQLAlchemy(app)
 
 from .views import *
 

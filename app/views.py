@@ -1,5 +1,5 @@
 from flask import jsonify, request, make_response
-from . import app, mysql
+from . import app, db
 
 @app.route('/contacts', methods=['GET', 'OPTIONS'])
 def get_contacts():
@@ -10,19 +10,11 @@ def get_contacts():
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
         return response
 
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT * FROM contacts")
-    rows = cur.fetchall()
-    cur.close()
-
-    contacts = []
-    for row in rows:
-        contacts.append({
-            'id': row[0],
-            'name': row[1],
-            'email': row[2],
-            'phone': row[3]
-        })
+    result = db.engine.execute("SELECT * FROM contacts")
+    contacts = [
+        {'id': row['id'], 'name': row['name'], 'email': row['email'], 'phone': row['phone']}
+        for row in result
+    ]
 
     response = jsonify({'contacts': contacts})
     response.headers['Access-Control-Allow-Origin'] = '*'
