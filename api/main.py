@@ -225,6 +225,9 @@ async def import_excel(file: UploadFile = File(...)):
         # Read the file into a Pandas DataFrame
         df = pd.read_excel(file.file, engine='openpyxl')
 
+        # Ensure column names match the database schema and handle missing fields
+        df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
+
         # Establish database connection
         pool = await aiomysql.create_pool(
             host=DB_CONFIG['host'],
@@ -291,6 +294,7 @@ async def import_excel(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"An error occurred while importing the Excel file: {e}")
 
     return {"message": "Excel file imported successfully"}
+
 
 from fastapi.middleware.cors import CORSMiddleware
 
