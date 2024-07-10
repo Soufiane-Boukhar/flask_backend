@@ -4,6 +4,11 @@ from pydantic import BaseModel
 import aiomysql
 import logging
 from passlib.context import CryptContext
+import hmac
+import hashlib
+from datetime import datetime, timedelta
+import secrets
+from typing import Optional
 
 app = FastAPI()
 
@@ -15,17 +20,31 @@ DB_CONFIG = {
     'user': 'avnadmin',
     'password': 'AVNS_wWoRjEZRmFF5NgjGCcY',
     'db': 'defaultdb',
-    'ssl': None,  
+    'ssl': None,
     'autocommit': True,
 }
+
+SECRET_KEY = secrets.token_hex(32)  
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+def create_hmac_token(data: dict) -> str:
+    """Create an HMAC token using the SECRET_KEY."""
+    message = str(data).encode()
+    return hmac.new(SECRET_KEY.encode(), message, hashlib.sha256).hexdigest()
+
 class UserCreate(BaseModel):
     name: str
+    email: str
+    password: str
+
+class UserLogin(BaseModel):
     email: str
     password: str
 
@@ -38,24 +57,24 @@ async def get_contacts():
             user=DB_CONFIG['user'],
             password=DB_CONFIG['password'],
             db=DB_CONFIG['db'],
-            ssl=DB_CONFIG['ssl'], 
+            ssl=DB_CONFIG['ssl'],
             autocommit=DB_CONFIG['autocommit']
         )
-        
+
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 sql_select = 'SELECT * FROM contacts'
                 await cursor.execute(sql_select)
                 results = await cursor.fetchall()
-                
+
                 column_names = [desc[0] for desc in cursor.description]
-                
+
                 contacts = [dict(zip(column_names, row)) for row in results]
-                
+
     except Exception as e:
         logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data from the contacts table: {e}")
-    
+
     return JSONResponse(content={"contacts": contacts})
 
 @app.post("/register")
@@ -67,7 +86,7 @@ async def register_user(user: UserCreate):
             user=DB_CONFIG['user'],
             password=DB_CONFIG['password'],
             db=DB_CONFIG['db'],
-            ssl=DB_CONFIG['ssl'], 
+            ssl=DB_CONFIG['ssl'],
             autocommit=DB_CONFIG['autocommit']
         )
 
@@ -77,20 +96,48 @@ async def register_user(user: UserCreate):
                 existing_user = await cursor.fetchone()
                 if existing_user:
                     raise HTTPException(status_code=400, detail="Email already registered")
-                
+
                 hashed_password = hash_password(user.password)
                 await cursor.execute(
                     'INSERT INTO users (name, email, password) VALUES (%s, %s, %s)',
                     (user.name, user.email, hashed_password)
                 )
-                
+
                 await conn.commit()
 
     except Exception as e:
         logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while registering the user: {e}")
-    
+
     return JSONResponse(content={"message": "User registered successfully"})
+
+@app.post("/login")
+async def login(user: UserLogin):
+    try:
+        pool = await aiomysql.create_pool(
+            host=DB_CONFIG['host'],
+            port=DB_CONFIG['port'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            db=DB_CONFIG['db'],
+            ssl=DB_CONFIG['ssl'],
+            autocommit=DB_CONFIG['autocommit']
+        )
+
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute('SELECT password FROM users WHERE email=%s', (user.email,))
+                db_password = await cursor.fetchone()
+                if db_password is None or not verify_password(user.password, db_password[0]):
+                    raise HTTPException(status_code=401, detail="Invalid credentials")
+
+                hmac_token = create_hmac_token(data={"email": user.email, "timestamp": datetime.utcnow().isoformat()})
+
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred during login: {e}")
+
+    return JSONResponse(content={"hmac_token": hmac_token})
 
 from fastapi.middleware.cors import CORSMiddleware
 
