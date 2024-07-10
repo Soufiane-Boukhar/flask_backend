@@ -291,9 +291,9 @@ async def import_excel(file: UploadFile = File(...)):
                     logging.debug(f"Prepared data for insertion: {suiver_data}")
 
                     try:
-                        # Check for any remaining NaN or None values in prepared data
+                        # Check for any remaining None values in prepared data
                         if any(value is None for value in suiver_data.values()):
-                            raise ValueError("Prepared data contains None values.")
+                            raise ValueError("Prepared data contains None values. Check columns for NULL constraints.")
 
                         # Insert the data into the database
                         await cursor.execute(
