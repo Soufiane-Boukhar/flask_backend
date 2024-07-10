@@ -219,16 +219,13 @@ async def register_suiver(suiver: SuiverCreate):
     return JSONResponse(content={"message": "Project registered successfully"})
 
 
-@app.post("/import-excel/")
+@app.post('/import-excel')
 async def import_excel(file: UploadFile = File(...)):
-    if not file.filename.endswith('.xlsx'):
-        raise HTTPException(status_code=400, detail="Invalid file format. Please upload an .xlsx file.")
-
     try:
-        # Read the Excel file
-        df = pd.read_excel(file.file)
+        # Read the file into a Pandas DataFrame
+        df = pd.read_excel(file.file, engine='openpyxl')
 
-        # Database connection
+        # Establish database connection
         pool = await aiomysql.create_pool(
             host=DB_CONFIG['host'],
             port=DB_CONFIG['port'],
@@ -241,8 +238,34 @@ async def import_excel(file: UploadFile = File(...)):
 
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
-                # Iterate over the rows in the dataframe and insert into the database
-                for index, row in df.iterrows():
+                for _, row in df.iterrows():
+                    # Prepare the data
+                    suiver_data = {
+                        "representant": row.get("representant"),
+                        "nom": row.get("nom"),
+                        "mode_retour": row.get("mode_retour"),
+                        "activite": row.get("activite"),
+                        "contact": row.get("contact"),
+                        "type_bien": row.get("type_bien"),
+                        "action": row.get("action"),
+                        "budget": row.get("budget"),
+                        "superficie": row.get("superficie"),
+                        "zone": row.get("zone"),
+                        "type_accompagnement": row.get("type_accompagnement"),
+                        "prix_alloue": row.get("prix_alloue"),
+                        "services_clotures": row.get("services_clotures"),
+                        "services_a_cloturer": row.get("services_a_cloturer"),
+                        "ok_nok": row.get("ok_nok"),
+                        "annexes": row.get("annexes"),
+                        "ca_previsionnel": row.get("ca_previsionnel"),
+                        "ca_realise": row.get("ca_realise"),
+                        "total_ca": row.get("total_ca"),
+                        "status": row.get("status"),
+                        "created_date": row.get("created_date"),
+                        "update_date": row.get("update_date"),
+                    }
+
+                    # Insert the data into the database
                     await cursor.execute(
                         '''
                         INSERT INTO project_tracking (
@@ -253,20 +276,21 @@ async def import_excel(file: UploadFile = File(...)):
                         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ''',
                         (
-                            row.get('representant'), row.get('nom'), row.get('mode_retour'), row.get('activite'), row.get('contact'),
-                            row.get('type_bien'), row.get('action'), row.get('budget'), row.get('superficie'), row.get('zone'),
-                            row.get('type_accompagnement'), row.get('prix_alloue'), row.get('services_clotures'),
-                            row.get('services_a_cloturer'), row.get('ok_nok'), row.get('annexes'), row.get('ca_previsionnel'),
-                            row.get('ca_realise'), row.get('total_ca'), row.get('status'), row.get('created_date'), row.get('update_date')
+                            suiver_data.get("representant"), suiver_data.get("nom"), suiver_data.get("mode_retour"), suiver_data.get("activite"), suiver_data.get("contact"),
+                            suiver_data.get("type_bien"), suiver_data.get("action"), suiver_data.get("budget"), suiver_data.get("superficie"), suiver_data.get("zone"),
+                            suiver_data.get("type_accompagnement"), suiver_data.get("prix_alloue"), suiver_data.get("services_clotures"),
+                            suiver_data.get("services_a_cloturer"), suiver_data.get("ok_nok"), suiver_data.get("annexes"), suiver_data.get("ca_previsionnel"),
+                            suiver_data.get("ca_realise"), suiver_data.get("total_ca"), suiver_data.get("status"), suiver_data.get("created_date"), suiver_data.get("update_date")
                         )
                     )
+
                 await conn.commit()
 
     except Exception as e:
         logging.error(f"Error: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred while processing the Excel file: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while importing the Excel file: {e}")
 
-    return JSONResponse(content={"message": "Excel file imported successfully"})
+    return {"message": "Excel file imported successfully"}
 
 from fastapi.middleware.cors import CORSMiddleware
 
