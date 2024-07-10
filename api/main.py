@@ -60,23 +60,29 @@ class UserLogin(BaseModel):
     email: str
     password: str
 
-class SuiverCreate(BaseModel):
-    name: str
-    activity: str
-    contact: str
-    type_of_property: str
+class ProjectTrackingCreate(BaseModel):
+    representant: Optional[str] = None
+    nom: Optional[str] = None
+    mode_retour: Optional[str] = None
+    activite: Optional[str] = None
+    contact: Optional[str] = None
+    type_bien: Optional[str] = None
+    action: Optional[str] = None
     budget: Optional[float] = None
-    area: Optional[float] = None
+    superficie: Optional[float] = None
     zone: Optional[str] = None
-    services_provided: Optional[str] = None
-    allocated_price: Optional[float] = None
-    closed_services: Optional[str] = None
-    services_to_close: Optional[str] = None
-    status: str
+    type_accompagnement: Optional[str] = None
+    prix_alloue: Optional[float] = None
+    services_clotures: Optional[str] = None
+    services_a_cloturer: Optional[str] = None
+    ok_nok: Optional[str] = None
     annexes: Optional[str] = None
-    forecast_revenue: Optional[float] = None
-    realized_revenue: Optional[float] = None
-    total_revenue: Optional[float] = None
+    ca_previsionnel: Optional[float] = None
+    ca_realise: Optional[float] = None
+    total_ca: Optional[float] = None
+    status: Optional[str] = 'Active'
+    created_date: Optional[date] = None
+    update_date: Optional[date] = None
 
 @app.get("/contacts")
 async def get_contacts():
@@ -187,16 +193,30 @@ async def register_suiver(suiver: SuiverCreate):
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute(
-                    'INSERT INTO suiver_projets (name, activity, contact, type_of_property, budget, area, zone, services_provided, allocated_price, closed_services, services_to_close, status, annexes, forecast_revenue, realized_revenue, total_revenue) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                    (suiver.name, suiver.activity, suiver.contact, suiver.type_of_property, suiver.budget, suiver.area, suiver.zone, suiver.services_provided, suiver.allocated_price, suiver.closed_services, suiver.services_to_close, suiver.status, suiver.annexes, suiver.forecast_revenue, suiver.realized_revenue, suiver.total_revenue)
+                    '''
+                    INSERT INTO project_tracking (
+                        representant, nom, mode_retour, activite, contact, type_bien, action, 
+                        budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures, 
+                        services_a_cloturer, ok_nok, annexes, ca_previsionnel, ca_realise, 
+                        total_ca, status, created_date, update_date
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ''',
+                    (
+                        suiver.representant, suiver.nom, suiver.mode_retour, suiver.activite, suiver.contact,
+                        suiver.type_bien, suiver.action, suiver.budget, suiver.superficie, suiver.zone,
+                        suiver.type_accompagnement, suiver.prix_alloue, suiver.services_clotures,
+                        suiver.services_a_cloturer, suiver.ok_nok, suiver.annexes, suiver.ca_previsionnel,
+                        suiver.ca_realise, suiver.total_ca, suiver.status, suiver.created_date, suiver.update_date
+                    )
                 )
+
                 await conn.commit()
 
     except Exception as e:
         logging.error(f"Error: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred while registering the SuiverProjet: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while registering the project: {e}")
 
-    return JSONResponse(content={"message": "SuiverProjet registered successfully"})
+    return JSONResponse(content={"message": "Project registered successfully"})
 
 from fastapi.middleware.cors import CORSMiddleware
 
