@@ -231,9 +231,23 @@ async def import_excel(file: UploadFile = File(...)):
         # Log DataFrame head to inspect the first few rows
         logging.info(f"DataFrame head:\n{df.head()}")
 
-        # Ensure column names match the database schema and handle missing fields
+        # Normalize column names
         df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
         logging.info(f"Normalized columns: {df.columns.tolist()}")
+
+        # Define columns based on expected data schema (adjust as needed)
+        expected_columns = [
+            "representant", "nom", "mode_retour", "activite", "contact", "type_bien",
+            "action", "budget", "superficie", "zone", "type_accompagnement",
+            "prix_alloue", "services_clotures", "services_a_cloturer", "ok_nok",
+            "annexes", "ca_previsionnel", "ca_realise", "total_ca", "status",
+            "created_date", "update_date"
+        ]
+
+        # Ensure all expected columns are present in the DataFrame
+        missing_columns = [col for col in expected_columns if col not in df.columns]
+        if missing_columns:
+            logging.warning(f"Missing columns in DataFrame: {missing_columns}")
 
         # Establish database connection
         pool = await aiomysql.create_pool(
@@ -249,7 +263,7 @@ async def import_excel(file: UploadFile = File(...)):
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 for _, row in df.iterrows():
-                    # Prepare the data
+                    # Prepare the data with possible missing fields
                     suiver_data = {
                         "representant": row.get("representant"),
                         "nom": row.get("nom"),
@@ -282,8 +296,8 @@ async def import_excel(file: UploadFile = File(...)):
                     await cursor.execute(
                         '''
                         INSERT INTO project_tracking (
-                            representant, nom, mode_retour, activite, contact, type_bien, action, 
-                            budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures, 
+                            representant, nom, mode_retour, activite, contact, type_bien, action,
+                            budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures,
                             services_a_cloturer, ok_nok, annexes, ca_previsionnel, ca_realise, 
                             total_ca, status, created_date, update_date
                         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
