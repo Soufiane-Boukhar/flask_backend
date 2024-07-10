@@ -23,4 +23,4 @@ def get_contacts():
 
 @app.route('/', methods=['GET'])
 def Home():
-    return ('Home page')
+    return 'Home page'
