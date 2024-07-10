@@ -19,3 +19,8 @@ def get_contacts():
     response = jsonify({'contacts': contacts})
     response.headers['Access-Control-Allow-Origin'] = '*'
     return response
+
+
+@app.route('/', methods=['GET'])
+def Home():
+    return ('Home page')
