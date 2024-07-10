@@ -220,6 +220,7 @@ async def register_suiver(suiver: SuiverCreate):
     return JSONResponse(content={"message": "Project registered successfully"})
 
 
+
 @app.post('/import-excel')
 async def import_excel(file: UploadFile = File(...)):
     try:
@@ -289,14 +290,6 @@ async def import_excel(file: UploadFile = File(...)):
 
                     # Log prepared data for debugging
                     logging.debug(f"Prepared data for insertion: {suiver_data}")
-
-                    # Check for any remaining None values in prepared data
-                    if any(value is None for value in suiver_data.values()):
-                        # Detailed validation for each field
-                        missing_fields = [key for key, value in suiver_data.items() if value is None]
-                        error_message = f"Prepared data contains None values for fields: {', '.join(missing_fields)}. Check columns for NULL constraints."
-                        logging.error(f"Data validation error occurred: {error_message}")
-                        raise HTTPException(status_code=400, detail=error_message)
 
                     try:
                         # Insert the data into the database
