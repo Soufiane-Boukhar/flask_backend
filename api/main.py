@@ -309,7 +309,6 @@ async def import_excel(file: UploadFile = File(...)):
 
     return JSONResponse(content=response_content)
 
-
 from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
