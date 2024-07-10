@@ -250,13 +250,13 @@ async def import_excel(file: UploadFile = File(...)):
 
         # Simulate database insertion to help diagnose issues
         pool = await aiomysql.create_pool(
-            host=DB_CONFIG['host'],
-            port=DB_CONFIG['port'],
-            user=DB_CONFIG['user'],
-            password=DB_CONFIG['password'],
-            db=DB_CONFIG['db'],
-            ssl=DB_CONFIG['ssl'],
-            autocommit=DB_CONFIG['autocommit']
+            host='localhost',
+            port=3306,
+            user='user',
+            password='password',
+            db='database',
+            ssl=None,
+            autocommit=True
         )
 
         async with pool.acquire() as conn:
@@ -292,6 +292,10 @@ async def import_excel(file: UploadFile = File(...)):
                     logging.debug(f"Prepared data for insertion: {suiver_data}")
 
                     try:
+                        # Check for any remaining NaN values in prepared data
+                        if any(value is pd.NaT or pd.isna(value) for value in suiver_data.values()):
+                            raise ValueError("Prepared data contains NaN or NaT values.")
+
                         # Insert the data into the database
                         await cursor.execute(
                             '''
@@ -310,8 +314,10 @@ async def import_excel(file: UploadFile = File(...)):
                                 suiver_data.get("ca_realise"), suiver_data.get("total_ca"), suiver_data.get("status"), suiver_data.get("created_date"), suiver_data.get("update_date")
                             )
                         )
+                    except ValueError as ve:
+                        logging.error(f"Data validation error occurred: {ve}")
+                        raise HTTPException(status_code=400, detail=f"Data validation error: {ve}")
                     except Exception as db_err:
-                        # Log database-specific error
                         logging.error(f"Database error occurred: {db_err}")
                         raise HTTPException(status_code=500, detail=f"An error occurred while inserting data into the database: {db_err}")
 
