@@ -222,7 +222,6 @@ async def register_suiver(suiver: SuiverCreate):
 @app.post('/import-excel')
 async def import_excel(file: UploadFile = File(...)):
     try:
-        # Ensure the file is present
         if not file:
             raise HTTPException(status_code=400, detail="File is required")
 
@@ -231,6 +230,9 @@ async def import_excel(file: UploadFile = File(...)):
 
         # Normalize column names
         df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
+
+        # Replace NaN values with None
+        df = df.where(pd.notnull(df), None)
 
         # Convert DataFrame to JSON
         data_json = df.to_dict(orient='records')
