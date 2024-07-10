@@ -250,13 +250,13 @@ async def import_excel(file: UploadFile = File(...)):
 
         # Simulate database insertion to help diagnose issues
         pool = await aiomysql.create_pool(
-            host='localhost',
-            port=3306,
-            user='user',
-            password='password',
-            db='database',
-            ssl=None,
-            autocommit=True
+            host=DB_CONFIG['host'],
+            port=DB_CONFIG['port'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            db=DB_CONFIG['db'],
+            ssl=DB_CONFIG['ssl'],
+            autocommit=DB_CONFIG['autocommit']
         )
 
         async with pool.acquire() as conn:
