@@ -4,6 +4,7 @@ import os
 
 app = Flask(__name__)
 
+# Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = (
     f"mysql+pymysql://{os.getenv('MYSQL_USER', 'avnadmin')}:"
     f"{os.getenv('MYSQL_PASSWORD', 'AVNS_wWoRjEZRmFF5NgjGCcY')}@"
