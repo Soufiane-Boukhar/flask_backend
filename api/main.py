@@ -234,7 +234,7 @@ async def import_excel(file: UploadFile = File(...)):
         # Replace NaN values with None
         df = df.where(pd.notnull(df), None)
 
-        # Confirm replacement of NaN with None (for debugging purposes)
+        # Debugging information to check NaN replacement
         debug_info = {
             "null_counts": df.isnull().sum().to_dict(),
             "data_sample": df.head().to_dict(orient='records')
@@ -289,6 +289,9 @@ async def import_excel(file: UploadFile = File(...)):
                         "created_date": getattr(row, "created_date", None),
                         "update_date": getattr(row, "update_date", None),
                     }
+
+                    # Log prepared data for debugging
+                    print("Prepared data for insertion:", suiver_data)
 
                     # Insert the data into the database
                     await cursor.execute(
