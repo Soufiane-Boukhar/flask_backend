@@ -234,13 +234,20 @@ async def import_excel(file: UploadFile = File(...)):
         # Replace NaN values with None
         df = df.where(pd.notnull(df), None)
 
+        # Confirm replacement of NaN with None (for debugging purposes)
+        debug_info = {
+            "null_counts": df.isnull().sum().to_dict(),
+            "data_sample": df.head().to_dict(orient='records')
+        }
+
         # Convert DataFrame to JSON
         data_json = df.to_dict(orient='records')
 
         # Log and return DataFrame content
         response_content = {
             "message": "Excel file imported successfully",
-            "data": data_json
+            "data": data_json,
+            "debug_info": debug_info  # Include debug information in the response
         }
 
         # Establish database connection
