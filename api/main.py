@@ -1,9 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 import aiomysql
+import logging
 
 app = FastAPI()
 
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Database configuration
 DB_CONFIG = {
     'host': 'mysql-1fb82b3b-boukhar-d756.e.aivencloud.com',
     'port': 20744,
@@ -16,6 +21,7 @@ DB_CONFIG = {
 @app.get("/contacts")
 async def get_contacts():
     try:
+        # Create a connection pool
         pool = await aiomysql.create_pool(
             host=DB_CONFIG['host'],
             port=DB_CONFIG['port'],
@@ -32,16 +38,19 @@ async def get_contacts():
                 await cursor.execute(sql_select)
                 results = await cursor.fetchall()
                 
+                # Column names
                 column_names = [desc[0] for desc in cursor.description]
                 
+                # Convert results to list of dictionaries
                 contacts = [dict(zip(column_names, row)) for row in results]
                 
     except Exception as e:
-        print(f"Error: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred while retrieving data from the contacts table.")
+        logging.error(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data from the contacts table: {e}")
     
     return JSONResponse(content={"contacts": contacts})
 
+# CORS Middleware
 from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
@@ -51,6 +60,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Example health check endpoint
 @app.get("/")
 async def health_check():
     return {"message": "The health check is successful!"}
