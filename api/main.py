@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import aiomysql
@@ -9,6 +9,7 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional
+import pandas as pd
 
 app = FastAPI()
 
@@ -24,7 +25,7 @@ DB_CONFIG = {
     'autocommit': True,
 }
 
-SECRET_KEY = secrets.token_hex(32) 
+SECRET_KEY = secrets.token_hex(32)
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -61,29 +62,22 @@ class UserLogin(BaseModel):
     password: str
 
 class SuiverCreate(BaseModel):
-    representant: str
-    nom: str
-    mode_retour: str
-    activite: str
+    name: str
+    activity: str
     contact: str
-    type_bien: str
-    action: str
+    type_of_property: str
     budget: Optional[float] = None
-    superficie: Optional[float] = None
+    area: Optional[float] = None
     zone: Optional[str] = None
-    type_accompagnement: Optional[str] = None
-    prix_alloue: Optional[float] = None
-    services_clotures: Optional[str] = None
-    services_a_cloturer: Optional[str] = None
-    ok_nok: str
-    annexes: Optional[str] = None
-    ca_previsionnel: Optional[float] = None
-    ca_realise: Optional[float] = None
-    total_ca: Optional[float] = None
+    services_provided: Optional[str] = None
+    allocated_price: Optional[float] = None
+    closed_services: Optional[str] = None
+    services_to_close: Optional[str] = None
     status: str
-    created_date: str
-    update_date: str
-
+    annexes: Optional[str] = None
+    forecast_revenue: Optional[float] = None
+    realized_revenue: Optional[float] = None
+    total_revenue: Optional[float] = None
 
 @app.get("/contacts")
 async def get_contacts():
@@ -177,7 +171,6 @@ async def login(user: UserLogin):
 
     return JSONResponse(content={"access_token": access_token})
 
-
 @app.post('/SuiverProjet')
 async def register_suiver(suiver: SuiverCreate):
     try:
@@ -204,10 +197,10 @@ async def register_suiver(suiver: SuiverCreate):
                     ''',
                     (
                         suiver.representant, suiver.nom, suiver.mode_retour, suiver.activite, suiver.contact,
-                        suiver.type_bien, suiver.action, suiver.budget, suiver.superficie, suiver.zone,
-                        suiver.type_accompagnement, suiver.prix_alloue, suiver.services_clotures,
-                        suiver.services_a_cloturer, suiver.ok_nok, suiver.annexes, suiver.ca_previsionnel,
-                        suiver.ca_realise, suiver.total_ca, suiver.status, suiver.created_date, suiver.update_date
+                        suiver.type_bien, suiver.action, suiver.budget, suiver.area, suiver.zone,
+                        suiver.services_provided, suiver.allocated_price, suiver.closed_services,
+                        suiver.services_to_close, suiver.status, suiver.annexes, suiver.forecast_revenue,
+                        suiver.realized_revenue, suiver.total_revenue, suiver.status, suiver.created_date, suiver.update_date
                     )
                 )
 
@@ -218,6 +211,52 @@ async def register_suiver(suiver: SuiverCreate):
         raise HTTPException(status_code=500, detail=f"An error occurred while registering the project: {e}")
 
     return JSONResponse(content={"message": "Project registered successfully"})
+
+@app.post("/import-excel/")
+async def import_excel(file: UploadFile = File(...)):
+    try:
+        # Read the file into a pandas DataFrame
+        df = pd.read_excel(file.file, engine='openpyxl')
+
+        # Process each row in the DataFrame
+        pool = await aiomysql.create_pool(
+            host=DB_CONFIG['host'],
+            port=DB_CONFIG['port'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            db=DB_CONFIG['db'],
+            ssl=DB_CONFIG['ssl'],
+            autocommit=DB_CONFIG['autocommit']
+        )
+
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                for index, row in df.iterrows():
+                    await cursor.execute(
+                        '''
+                        INSERT INTO project_tracking (
+                            representant, nom, mode_retour, activite, contact, type_bien, action, 
+                            budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures, 
+                            services_a_cloturer, ok_nok, annexes, ca_previsionnel, ca_realise, 
+                            total_ca, status, created_date, update_date
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ''',
+                        (
+                            row['representant'], row['nom'], row['mode_retour'], row['activite'], row['contact'],
+                            row['type_bien'], row['action'], row['budget'], row['superficie'], row['zone'],
+                            row['type_accompagnement'], row['prix_alloue'], row['services_clotures'],
+                            row['services_a_cloturer'], row['ok_nok'], row['annexes'], row['ca_previsionnel'],
+                            row['ca_realise'], row['total_ca'], row['status'], row['created_date'], row['update_date']
+                        )
+                    )
+
+                await conn.commit()
+
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while importing the Excel file: {e}")
+
+    return JSONResponse(content={"message": "Data imported successfully"})
 
 from fastapi.middleware.cors import CORSMiddleware
 
