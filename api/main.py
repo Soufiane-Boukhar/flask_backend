@@ -24,7 +24,8 @@ DB_CONFIG = {
     'autocommit': True,
 }
 
-SECRET_KEY = secrets.token_hex(32)  
+SECRET_KEY = secrets.token_hex(32) 
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
