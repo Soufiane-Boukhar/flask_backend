@@ -8,14 +8,15 @@ app = FastAPI()
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Database configuration
+# Database configuration without SSL
 DB_CONFIG = {
     'host': 'mysql-1fb82b3b-boukhar-d756.e.aivencloud.com',
     'port': 20744,
     'user': 'avnadmin',
     'password': 'AVNS_wWoRjEZRmFF5NgjGCcY',
     'db': 'defaultdb',
-    'ssl': True,
+    'ssl': None,  # SSL is disabled
+    'autocommit': True,
 }
 
 @app.get("/contacts")
@@ -28,8 +29,8 @@ async def get_contacts():
             user=DB_CONFIG['user'],
             password=DB_CONFIG['password'],
             db=DB_CONFIG['db'],
-            ssl=DB_CONFIG['ssl'],
-            autocommit=True
+            ssl=DB_CONFIG['ssl'],  # SSL is set to None
+            autocommit=DB_CONFIG['autocommit']
         )
         
         async with pool.acquire() as conn:
