@@ -60,29 +60,23 @@ class UserLogin(BaseModel):
     email: str
     password: str
 
-class ProjectTrackingCreate(BaseModel):
-    representant: Optional[str] = None
-    nom: Optional[str] = None
-    mode_retour: Optional[str] = None
-    activite: Optional[str] = None
-    contact: Optional[str] = None
-    type_bien: Optional[str] = None
-    action: Optional[str] = None
+class SuiverCreate(BaseModel):
+    name: str
+    activity: str
+    contact: str
+    type_of_property: str
     budget: Optional[float] = None
-    superficie: Optional[float] = None
+    area: Optional[float] = None
     zone: Optional[str] = None
-    type_accompagnement: Optional[str] = None
-    prix_alloue: Optional[float] = None
-    services_clotures: Optional[str] = None
-    services_a_cloturer: Optional[str] = None
-    ok_nok: Optional[str] = None
+    services_provided: Optional[str] = None
+    allocated_price: Optional[float] = None
+    closed_services: Optional[str] = None
+    services_to_close: Optional[str] = None
+    status: str
     annexes: Optional[str] = None
-    ca_previsionnel: Optional[float] = None
-    ca_realise: Optional[float] = None
-    total_ca: Optional[float] = None
-    status: Optional[str] = 'Active'
-    created_date: Optional[date] = None
-    update_date: Optional[date] = None
+    forecast_revenue: Optional[float] = None
+    realized_revenue: Optional[float] = None
+    total_revenue: Optional[float] = None
 
 @app.get("/contacts")
 async def get_contacts():
