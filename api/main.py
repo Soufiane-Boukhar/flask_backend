@@ -222,7 +222,7 @@ async def register_suiver(suiver: SuiverCreate):
 @app.post('/import-excel')
 async def import_excel(file: UploadFile = File(...)):
     try:
-        # Check if the file is uploaded
+        # Ensure the file is present
         if not file:
             raise HTTPException(status_code=400, detail="File is required")
 
