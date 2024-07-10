@@ -10,6 +10,8 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 import pandas as pd
+import io
+
 
 app = FastAPI()
 
@@ -225,33 +227,38 @@ async def import_excel(file: UploadFile = File(...)):
         if not file:
             raise HTTPException(status_code=400, detail="File is required")
 
-        df = pd.read_excel(file.file, engine='openpyxl')
+        # Read the file into a Pandas DataFrame
+        file_content = await file.read()  # Read file content asynchronously
+        df = pd.read_excel(io.BytesIO(file_content), engine='openpyxl')
 
+        # Normalize column names
         df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
 
+        # Replace NaN values with None
         df = df.applymap(lambda x: None if pd.isna(x) else x)
 
+        # Convert DataFrame to JSON
+        data_json = df.to_dict(orient='records')
+
+        # Prepare debug info
         debug_info = {
             "null_counts": df.isnull().sum().to_dict(),
             "data_sample": df.head().to_dict(orient='records')
         }
 
-        data_json = df.to_dict(orient='records')
-
-        print("Data to be returned:", data_json)
-
+        # Return the data as JSON
         response_content = {
             "message": "Excel file imported successfully",
             "data": data_json,
-            "debug_info": debug_info  
+            "debug_info": debug_info
         }
 
     except Exception as e:
+        logging.error(f"An error occurred: {e}")  # Log the error
         raise HTTPException(status_code=500, detail=f"An error occurred while importing the Excel file: {e}")
 
     return JSONResponse(content=response_content)
 
-    
 from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
