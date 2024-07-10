@@ -212,13 +212,16 @@ async def register_suiver(suiver: SuiverCreate):
 
     return JSONResponse(content={"message": "Project registered successfully"})
 
-@app.post("/import-excel")
+@app.post("/import-excel/")
 async def import_excel(file: UploadFile = File(...)):
-    try:
-        # Read the file into a pandas DataFrame
-        df = pd.read_excel(file.file, engine='openpyxl')
+    if not file.filename.endswith('.xlsx'):
+        raise HTTPException(status_code=400, detail="Invalid file format. Please upload an .xlsx file.")
 
-        # Process each row in the DataFrame
+    try:
+        # Read the Excel file
+        df = pd.read_excel(file.file)
+
+        # Database connection
         pool = await aiomysql.create_pool(
             host=DB_CONFIG['host'],
             port=DB_CONFIG['port'],
@@ -231,6 +234,7 @@ async def import_excel(file: UploadFile = File(...)):
 
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
+                # Iterate over the rows in the dataframe and insert into the database
                 for index, row in df.iterrows():
                     await cursor.execute(
                         '''
@@ -242,21 +246,20 @@ async def import_excel(file: UploadFile = File(...)):
                         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ''',
                         (
-                            row['representant'], row['nom'], row['mode_retour'], row['activite'], row['contact'],
-                            row['type_bien'], row['action'], row['budget'], row['superficie'], row['zone'],
-                            row['type_accompagnement'], row['prix_alloue'], row['services_clotures'],
-                            row['services_a_cloturer'], row['ok_nok'], row['annexes'], row['ca_previsionnel'],
-                            row['ca_realise'], row['total_ca'], row['status'], row['created_date'], row['update_date']
+                            row.get('representant'), row.get('nom'), row.get('mode_retour'), row.get('activite'), row.get('contact'),
+                            row.get('type_bien'), row.get('action'), row.get('budget'), row.get('superficie'), row.get('zone'),
+                            row.get('type_accompagnement'), row.get('prix_alloue'), row.get('services_clotures'),
+                            row.get('services_a_cloturer'), row.get('ok_nok'), row.get('annexes'), row.get('ca_previsionnel'),
+                            row.get('ca_realise'), row.get('total_ca'), row.get('status'), row.get('created_date'), row.get('update_date')
                         )
                     )
-
                 await conn.commit()
 
     except Exception as e:
         logging.error(f"Error: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred while importing the Excel file: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while processing the Excel file: {e}")
 
-    return JSONResponse(content={"message": "Data imported successfully"})
+    return JSONResponse(content={"message": "Excel file imported successfully"})
 
 from fastapi.middleware.cors import CORSMiddleware
 
