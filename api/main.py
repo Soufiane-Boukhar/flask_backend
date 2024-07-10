@@ -1,14 +1,13 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import aiomysql
 import logging
 from passlib.context import CryptContext
-import hmac
-import hashlib
+import jwt
 from datetime import datetime, timedelta
-import secrets
 from typing import Optional
+import secrets  # Import secrets to generate a secure secret key
 
 app = FastAPI()
 
@@ -20,11 +19,13 @@ DB_CONFIG = {
     'user': 'avnadmin',
     'password': 'AVNS_wWoRjEZRmFF5NgjGCcY',
     'db': 'defaultdb',
-    'ssl': None,
+    'ssl': None,  
     'autocommit': True,
 }
 
-SECRET_KEY = secrets.token_hex(32)  
+SECRET_KEY = secrets.token_urlsafe(32)
+ALGORITHM = 'HS256'
+ACCESS_TOKEN_EXPIRE_MINUTES = 30 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -34,10 +35,15 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
-def create_hmac_token(data: dict) -> str:
-    """Create an HMAC token using the SECRET_KEY."""
-    message = str(data).encode()
-    return hmac.new(SECRET_KEY.encode(), message, hashlib.sha256).hexdigest()
+def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
 class UserCreate(BaseModel):
     name: str
@@ -57,24 +63,24 @@ async def get_contacts():
             user=DB_CONFIG['user'],
             password=DB_CONFIG['password'],
             db=DB_CONFIG['db'],
-            ssl=DB_CONFIG['ssl'],
+            ssl=DB_CONFIG['ssl'], 
             autocommit=DB_CONFIG['autocommit']
         )
-
+        
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 sql_select = 'SELECT * FROM contacts'
                 await cursor.execute(sql_select)
                 results = await cursor.fetchall()
-
+                
                 column_names = [desc[0] for desc in cursor.description]
-
+                
                 contacts = [dict(zip(column_names, row)) for row in results]
-
+                
     except Exception as e:
         logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data from the contacts table: {e}")
-
+    
     return JSONResponse(content={"contacts": contacts})
 
 @app.post("/register")
@@ -86,7 +92,7 @@ async def register_user(user: UserCreate):
             user=DB_CONFIG['user'],
             password=DB_CONFIG['password'],
             db=DB_CONFIG['db'],
-            ssl=DB_CONFIG['ssl'],
+            ssl=DB_CONFIG['ssl'], 
             autocommit=DB_CONFIG['autocommit']
         )
 
@@ -96,22 +102,20 @@ async def register_user(user: UserCreate):
                 existing_user = await cursor.fetchone()
                 if existing_user:
                     raise HTTPException(status_code=400, detail="Email already registered")
-
+                
                 hashed_password = hash_password(user.password)
                 await cursor.execute(
                     'INSERT INTO users (name, email, password) VALUES (%s, %s, %s)',
                     (user.name, user.email, hashed_password)
                 )
-
+                
                 await conn.commit()
 
     except Exception as e:
         logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while registering the user: {e}")
-
+    
     return JSONResponse(content={"message": "User registered successfully"})
-
-
 
 @app.post("/login")
 async def login(user: UserLogin):
@@ -133,7 +137,6 @@ async def login(user: UserLogin):
                 if db_password is None or not verify_password(user.password, db_password[0]):
                     raise HTTPException(status_code=401, detail="Invalid credentials")
 
-                # Generate JWT token instead of HMAC token
                 access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
                 access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
 
@@ -142,9 +145,6 @@ async def login(user: UserLogin):
         raise HTTPException(status_code=500, detail=f"An error occurred during login: {e}")
 
     return JSONResponse(content={"access_token": access_token})
-
-
-
 
 from fastapi.middleware.cors import CORSMiddleware
 
