@@ -219,8 +219,6 @@ async def register_suiver(suiver: SuiverCreate):
 
     return JSONResponse(content={"message": "Project registered successfully"})
 
-
-
 @app.post('/import-excel')
 async def import_excel(file: UploadFile = File(...)):
     try:
