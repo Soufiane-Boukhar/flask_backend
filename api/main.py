@@ -10,8 +10,6 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 import pandas as pd
-import io
-
 
 app = FastAPI()
 
@@ -228,33 +226,95 @@ async def import_excel(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="File is required")
 
         # Read the file into a Pandas DataFrame
-        file_content = await file.read()  # Read file content asynchronously
-        df = pd.read_excel(io.BytesIO(file_content), engine='openpyxl')
+        df = pd.read_excel(file.file, engine='openpyxl')
 
         # Normalize column names
         df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
 
         # Replace NaN values with None
-        df = df.applymap(lambda x: None if pd.isna(x) else x)
+        df = df.where(pd.notnull(df), None)
 
-        # Convert DataFrame to JSON
-        data_json = df.to_dict(orient='records')
-
-        # Prepare debug info
+        # Debugging information to check NaN replacement
         debug_info = {
             "null_counts": df.isnull().sum().to_dict(),
             "data_sample": df.head().to_dict(orient='records')
         }
 
-        # Return the data as JSON
+        # Convert DataFrame to JSON
+        data_json = df.to_dict(orient='records')
+
+        # Log and return DataFrame content
         response_content = {
             "message": "Excel file imported successfully",
             "data": data_json,
-            "debug_info": debug_info
+            "debug_info": debug_info  # Include debug information in the response
         }
 
+        # Establish database connection
+        pool = await aiomysql.create_pool(
+            host=DB_CONFIG['host'],
+            port=DB_CONFIG['port'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            db=DB_CONFIG['db'],
+            ssl=DB_CONFIG['ssl'],
+            autocommit=DB_CONFIG['autocommit']
+        )
+
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                for row in df.itertuples(index=False):
+                    # Prepare the data
+                    suiver_data = {
+                        "representant": getattr(row, "representant", None),
+                        "nom": getattr(row, "nom", None),
+                        "mode_retour": getattr(row, "mode_retour", None),
+                        "activite": getattr(row, "activite", None),
+                        "contact": getattr(row, "contact", None),
+                        "type_bien": getattr(row, "type_bien", None),
+                        "action": getattr(row, "action", None),
+                        "budget": getattr(row, "budget", None),
+                        "superficie": getattr(row, "superficie", None),
+                        "zone": getattr(row, "zone", None),
+                        "type_accompagnement": getattr(row, "type_accompagnement", None),
+                        "prix_alloue": getattr(row, "prix_alloue", None),
+                        "services_clotures": getattr(row, "services_clotures", None),
+                        "services_a_cloturer": getattr(row, "services_a_cloturer", None),
+                        "ok_nok": getattr(row, "ok_nok", None),
+                        "annexes": getattr(row, "annexes", None),
+                        "ca_previsionnel": getattr(row, "ca_previsionnel", None),
+                        "ca_realise": getattr(row, "ca_realise", None),
+                        "total_ca": getattr(row, "total_ca", None),
+                        "status": getattr(row, "status", None),
+                        "created_date": getattr(row, "created_date", None),
+                        "update_date": getattr(row, "update_date", None),
+                    }
+
+                    # Log prepared data for debugging
+                    print("Prepared data for insertion:", suiver_data)
+
+                    # Insert the data into the database
+                    await cursor.execute(
+                        '''
+                        INSERT INTO project_tracking (
+                            representant, nom, mode_retour, activite, contact, type_bien, action, 
+                            budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures, 
+                            services_a_cloturer, ok_nok, annexes, ca_previsionnel, ca_realise, 
+                            total_ca, status, created_date, update_date
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ''',
+                        (
+                            suiver_data.get("representant"), suiver_data.get("nom"), suiver_data.get("mode_retour"), suiver_data.get("activite"), suiver_data.get("contact"),
+                            suiver_data.get("type_bien"), suiver_data.get("action"), suiver_data.get("budget"), suiver_data.get("superficie"), suiver_data.get("zone"),
+                            suiver_data.get("type_accompagnement"), suiver_data.get("prix_alloue"), suiver_data.get("services_clotures"),
+                            suiver_data.get("services_a_cloturer"), suiver_data.get("ok_nok"), suiver_data.get("annexes"), suiver_data.get("ca_previsionnel"),
+                            suiver_data.get("ca_realise"), suiver_data.get("total_ca"), suiver_data.get("status"), suiver_data.get("created_date"), suiver_data.get("update_date")
+                        )
+                    )
+
+                await conn.commit()
+
     except Exception as e:
-        logging.error(f"An error occurred: {e}")  # Log the error
         raise HTTPException(status_code=500, detail=f"An error occurred while importing the Excel file: {e}")
 
     return JSONResponse(content=response_content)
