@@ -261,8 +261,11 @@ async def object_import(suivers: List[SuiverCreate]):
                         
                         # Clean and convert budget value
                         if s.budget:
-                            s.budget = clean_budget(s.budget)
-                        
+                            s.budget = str(s.budget)  # Convert float to string
+                            s.budget = clean_budget(s.budget)  # Example function to clean budget data
+
+                        # Convert other fields as needed
+
                         values.append((
                             s.representant, s.nom, s.mode_retour, s.activite, s.contact,
                             s.type_bien, s.action, s.budget, s.superficie, s.zone,
