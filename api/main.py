@@ -223,9 +223,9 @@ async def register_suiver(suiver: SuiverCreate):
 
 def convert_date(date_str: str) -> str:
     try:
-        # Convert the date from 'DD/MM/YYYY' to 'YYYY-MM-DD'
+        # Convert the date from 'DD/MM/YYYY' to 'YYYY/MM/DD'
         date_obj = datetime.strptime(date_str, '%d/%m/%Y')
-        return date_obj.strftime('%Y-%m-%d')
+        return date_obj.strftime('%Y/%m/%d')
     except ValueError:
         raise ValueError(f"Incorrect date format: {date_str}")
 
