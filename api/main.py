@@ -93,21 +93,21 @@ class BasedonneCreate(BaseModel):
     Nom_et_Prénom: str
     Zone: str
     Adresse: str
-    Superficie: Optional[float]
+    Superficie: str
     Descriptif_Comp: str
     Contact: str
-    Prix_unitaire_M2: Optional[float] = None
-    Prix_de_vente: Optional[float] = None
-    Prix_de_location: Optional[float] = None
+    Prix_unitaire_M2: Optional[float]
+    Prix_de_vente: Optional[float]
+    Prix_de_location: Optional[float]
     Disponibilité: str
-    Remarque: Optional[str]
+    Remarque: str
     Date_premier_contact: Optional[str]
-    Visite: Optional[str]
-    Fiche_identification_du_bien: str
-    Fiche_de_renseignement: Optional[str]
-    Localisation: Optional[str]
-    ID_identification: Optional[str]
-    Id_Renseignement: Optional[str]
+    Visite: str
+    Fiche_identification_bien: str
+    Fiche_de_renseignement: str
+    Localisation: str
+    ID_identification: str
+    Id_Renseignement: str
 
 
 def convert_date(date_str: str) -> str:
@@ -342,16 +342,16 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                                 b.Date_premier_contact = None  # Set to None if empty
 
                             # Validate and convert numeric fields
-                            prix_m2 = float(b.Prix_unitaire_M2) if b.Prix_unitaire_M2.strip() else None
-                            prix_vent = float(b.Prix_de_vente) if b.Prix_de_vente.strip() else None
-                            prix_location = float(b.Prix_de_location) if b.Prix_de_location.strip() else None
+                            prix_m2 = float(b.Prix_unitaire_M2) if b.Prix_unitaire_M2 else None
+                            prix_vent = float(b.Prix_de_vente) if b.Prix_de_vente else None
+                            prix_location = float(b.Prix_de_location) if b.Prix_de_location else None
 
                             values.append((
                                 b.Type_de_bien, b.Action_commerciale, b.Nom_et_Prénom, b.Zone, b.Adresse,
                                 b.Superficie, b.Descriptif_Comp, b.Contact,
                                 prix_m2, prix_vent, prix_location,
                                 b.Disponibilité, b.Remarque, b.Date_premier_contact, b.Visite,
-                                b.Fiche_identification_du_bien, b.Fiche_de_renseignement,
+                                b.Fiche_identification_bien, b.Fiche_de_renseignement,
                                 b.Localisation, b.ID_identification, b.Id_Renseignement
                             ))
                         except ValueError as ve:
@@ -359,12 +359,6 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                             continue
 
                     if values:
-                        # Replace empty strings with None for numeric fields
-                        values = [
-                            tuple(None if v == "" else v for v in entry)
-                            for entry in values
-                        ]
-
                         await cursor.executemany(
                             '''
                             INSERT INTO Basedonne (
