@@ -96,9 +96,9 @@ class BasedonneCreate(BaseModel):
     Superficie: Optional[float]
     Descriptif_Comp: str
     Contact: str
-    Prix_unitaire_M2: Optional[float]
-    Prix_de_vente: Optional[float]
-    Prix_de_location: Optional[float]
+    Prix_unitaire_M2: Optional[float] = None
+    Prix_de_vente: Optional[float] = None
+    Prix_de_location: Optional[float] = None
     Disponibilité: str
     Remarque: Optional[str]
     Date_premier_contact: Optional[str]
