@@ -387,6 +387,64 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
     return {"message": "Basedonne data imported successfully"}
 
 
+@app.post('/basedonneInsert')
+async def basedonne_insert_single(basedonne: BasedonneCreate):
+    try:
+        async with aiomysql.create_pool(**DB_CONFIG) as pool:
+            async with pool.acquire() as conn:
+                async with conn.cursor() as cursor:
+                    try:
+                        # Convert date format if present
+                        if basedonne.Date_premier_contact:
+                            basedonne.Date_premier_contact = convert_date(basedonne.Date_premier_contact)
+                        else:
+                            basedonne.Date_premier_contact = None  # Set to None if empty
+                       
+                        # Convert numeric fields to appropriate types
+                        superficie = float(basedonne.Superficie) if basedonne.Superficie is not None else None
+                        
+                        # Handle potential out-of-range values
+                        try:
+                            prix_m2 = decimal.Decimal(basedonne.Prix_unitaire_M2) if basedonne.Prix_unitaire_M2 is not None else None
+                            prix_vent = decimal.Decimal(basedonne.Prix_de_vente) if basedonne.Prix_de_vente is not None else None
+                            prix_location = decimal.Decimal(basedonne.Prix_de_location) if basedonne.Prix_de_location is not None else None
+                            
+                            # Cap values if they exceed the maximum allowed
+                            max_decimal = decimal.Decimal('9999999.99')  # Adjust based on your column definition
+                            prix_m2 = min(prix_m2, max_decimal) if prix_m2 is not None else None
+                            prix_vent = min(prix_vent, max_decimal) if prix_vent is not None else None
+                            prix_location = min(prix_location, max_decimal) if prix_location is not None else None
+                        except decimal.InvalidOperation:
+                            logging.warning(f"Invalid numeric value. Setting to None.")
+                            prix_m2, prix_vent, prix_location = None, None, None
+
+                        await cursor.execute(
+                            '''
+                            INSERT INTO Basedonne (
+                                type_bien, action_commercial, nom_prenom, zone, adresse, superficie,
+                                descriptif_composition, contact, prix_m2, prix_vent, prix_location,
+                                disponabilite, remarque, date_premiere_contact, visite,
+                                Fiche_identification_bien, Fiche_de_renseignement, Localisation,
+                                ID_identification, Id_Renseignement
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            ''',
+                            (
+                                basedonne.Type_de_bien, basedonne.Action_commerciale, basedonne.Nom_et_Prénom,
+                                basedonne.Zone, basedonne.Adresse, superficie, basedonne.Descriptif_Comp,
+                                basedonne.Contact, prix_m2, prix_vent, prix_location, basedonne.Disponibilité,
+                                basedonne.Remarque, basedonne.Date_premier_contact, basedonne.Visite,
+                                basedonne.Fiche_identification_du_bien, basedonne.Fiche_de_renseignement,
+                                basedonne.Localisation, basedonne.ID_identification, basedonne.Id_Renseignement
+                            )
+                        )
+                        await conn.commit()
+                    except ValueError as ve:
+                        logging.error(f"Error parsing fields: {ve}")
+                        raise HTTPException(status_code=400, detail=f"Invalid data format: {ve}")
+    except Exception as e:
+        logging.error(f"Error during database operation: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while inserting basedonne data: {e}")
+    return {"message": "Basedonne data inserted successfully"}
 
 
 from fastapi.middleware.cors import CORSMiddleware
