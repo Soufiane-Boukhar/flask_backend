@@ -238,6 +238,7 @@ def clean_budget(budget_str: str) -> float:
     except ValueError:
         raise HTTPException(status_code=422, detail=f"Invalid budget value: {budget_str}")
 
+# Define your endpoint
 @app.post('/objectImport')
 async def object_import(suivers: List[SuiverCreate]):
     try:
@@ -288,7 +289,7 @@ async def object_import(suivers: List[SuiverCreate]):
         raise HTTPException(status_code=500, detail=f"An error occurred while importing the data: {e}")
 
     return {"message": "Projects registered successfully"}
-
+    
 from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
