@@ -109,6 +109,15 @@ class BasedonneCreate(BaseModel):
     ID_identification: Optional[str]
     Id_Renseignement: Optional[str]
 
+    @validator('Prix_unitaire_M2', 'Prix_de_vente', 'Prix_de_location', pre=True, always=True)
+    def parse_float(cls, v):
+        if v == "":
+            return None
+        try:
+            return float(v)
+        except ValueError:
+            raise ValueError("Input should be a valid number")
+
 
 def convert_date(date_str: str) -> str:
     try:
@@ -321,7 +330,6 @@ async def object_import(suivers: List[SuiverCreate]):
 @app.post('/basedonneImport')
 async def basedonne_import(basedonnes: List[BasedonneCreate]):
     try:
-        # Establish database connection
         async with aiomysql.create_pool(
             host=DB_CONFIG['host'],
             port=DB_CONFIG['port'],
@@ -335,19 +343,16 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                 async with conn.cursor() as cursor:
                     values = []
                     for b in basedonnes:
-                        # Clean and convert data as needed
-                        # Example: convert date format
+                        # Convert date format if present
                         if b.Date_premier_contact:
                             b.Date_premier_contact = convert_date(b.Date_premier_contact)
                         else:
                             b.Date_premier_contact = None  # Set to None if empty
-                            
+
                         values.append((
                             b.Type_de_bien, b.Action_commerciale, b.Nom_et_Prénom, b.Zone, b.Adresse,
                             b.Superficie, b.Descriptif_Comp, b.Contact,
-                            b.Prix_unitaire_M2 if b.Prix_unitaire_M2 else None,
-                            b.Prix_de_vente if b.Prix_de_vente else None,
-                            b.Prix_de_location if b.Prix_de_location else None,
+                            b.Prix_unitaire_M2, b.Prix_de_vente, b.Prix_de_location,
                             b.Disponibilité, b.Remarque, b.Date_premier_contact, b.Visite,
                             b.Fiche_identification_du_bien, b.Fiche_de_renseignement,
                             b.Localisation, b.ID_identification, b.Id_Renseignement
@@ -372,7 +377,6 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
         raise HTTPException(status_code=500, detail=f"An error occurred while importing basedonne data: {e}")
 
     return {"message": "Basedonne data imported successfully"}
-
 
 
 
