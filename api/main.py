@@ -352,10 +352,10 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                     await cursor.executemany(
                         '''
                         INSERT INTO Basedonne (
-                            Type_de_bien, Action_commerciale, Nom_et_Prénom, Zone, Adresse, Superficie,
-                            Descriptif_Comp, Contact, Prix_unitaire_M2, Prix_de_vente, Prix_de_location,
-                            Disponibilité, Remarque, Date_premier_contact, Visite,
-                            Fiche_identification_du_bien, Fiche_de_renseignement, Localisation,
+                            type_bien, action_commercial, nom_prenom, zone, adresse, superficie,
+                            descriptif_composition, contact, prix_m2, prix_vent, prix_location,
+                            disponabilite, remarque, date_premiere_contact, visite,
+                            Fiche_identification_bien, Fiche_de_renseignement, Localisation,
                             ID_identification, Id_Renseignement
                         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ''',
@@ -368,6 +368,7 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
         raise HTTPException(status_code=500, detail=f"An error occurred while importing basedonne data: {e}")
 
     return {"message": "Basedonne data imported successfully"}
+
 
 
 
