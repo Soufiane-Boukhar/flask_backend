@@ -96,19 +96,18 @@ class BasedonneCreate(BaseModel):
     Superficie: Optional[str]
     Descriptif_Comp: Optional[str]
     Contact: Optional[str]
-    Prix_unitaire_M2: Optional[float]
-    Prix_de_vente: Optional[float]
-    Prix_de_location: Optional[float]
+    Prix_unitaire_M2: Optional[str]
+    Prix_de_vente: Optional[str]
+    Prix_de_location: Optional[str]
     Disponibilité: Optional[str]
     Remarque: Optional[str]
     Date_premier_contact: Optional[str]
     Visite: Optional[str]
-    Fiche_identification_bien: Optional[str]
+    Fiche_identification_du_bien: Optional[str]
     Fiche_de_renseignement: Optional[str]
     Localisation: Optional[str]
     ID_identification: Optional[str]
     Id_Renseignement: Optional[str]
-
 
 def convert_date(date_str: str) -> str:
     try:
@@ -340,30 +339,23 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                                 b.Date_premier_contact = convert_date(b.Date_premier_contact)
                             else:
                                 b.Date_premier_contact = None  # Set to None if empty
-
                            
-                            input_data = {
-                               prix_m2, 
-                               prix_vent,
-                               prix_location
-                            }
-
-                            for key, value in input_data.items():
-                                if value == "":
-                                    input_data[key] = None
+                            # Handle empty numeric fields
+                            prix_m2 = float(b.Prix_unitaire_M2) if b.Prix_unitaire_M2 else None
+                            prix_vent = float(b.Prix_de_vente) if b.Prix_de_vente else None
+                            prix_location = float(b.Prix_de_location) if b.Prix_de_location else None
 
                             values.append((
                                 b.Type_de_bien, b.Action_commerciale, b.Nom_et_Prénom, b.Zone, b.Adresse,
                                 b.Superficie, b.Descriptif_Comp, b.Contact,
                                 prix_m2, prix_vent, prix_location,
                                 b.Disponibilité, b.Remarque, b.Date_premier_contact, b.Visite,
-                                b.Fiche_identification_bien, b.Fiche_de_renseignement,
+                                b.Fiche_identification_du_bien, b.Fiche_de_renseignement,
                                 b.Localisation, b.ID_identification, b.Id_Renseignement
                             ))
                         except ValueError as ve:
                             logging.error(f"Error parsing numeric fields: {ve}. Skipping entry.")
                             continue
-
                     if values:
                         await cursor.executemany(
                             '''
@@ -378,13 +370,10 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                             values
                         )
                         await conn.commit()
-
     except Exception as e:
         logging.error(f"Error during database operation: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while importing basedonne data: {e}")
-
     return {"message": "Basedonne data imported successfully"}
-
 
 
 
