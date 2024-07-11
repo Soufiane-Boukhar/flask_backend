@@ -1,6 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 import aiomysql
 import logging
 from passlib.context import CryptContext
@@ -108,15 +108,6 @@ class BasedonneCreate(BaseModel):
     Localisation: Optional[str]
     ID_identification: Optional[str]
     Id_Renseignement: Optional[str]
-
-    @validator('Prix_unitaire_M2', 'Prix_de_vente', 'Prix_de_location', pre=True, always=True)
-    def parse_float(cls, v):
-        if v == "":
-            return None
-        try:
-            return float(v)
-        except ValueError:
-            raise ValueError("Input should be a valid number")
 
 
 def convert_date(date_str: str) -> str:
