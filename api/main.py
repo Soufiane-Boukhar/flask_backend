@@ -318,6 +318,61 @@ async def object_import(suivers: List[SuiverCreate]):
     return {"message": "Projects registered successfully"}
 
 
+@app.post('/basedonneImport')
+async def basedonne_import(basedonnes: List[BasedonneCreate]):
+    try:
+        # Establish database connection
+        async with aiomysql.create_pool(
+            host=DB_CONFIG['host'],
+            port=DB_CONFIG['port'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            db=DB_CONFIG['db'],
+            ssl=DB_CONFIG['ssl'],
+            autocommit=DB_CONFIG['autocommit']
+        ) as pool:
+            async with pool.acquire() as conn:
+                async with conn.cursor() as cursor:
+                    values = []
+                    for b in basedonnes:
+                        # Clean and convert data as needed
+                        # Example: convert date format
+                        if b.date_premiere_contact:
+                            b.date_premiere_contact = convert_date(b.date_premiere_contact)
+
+                        # Example: handle optional fields or conversions
+                        # Ensure contact is treated as string or None
+                        b.contact = str(b.contact) if b.contact is not None else None
+
+                        values.append((
+                            b.type_bien, b.action_commercial, b.nom_prenom, b.Zone, b.adresse,
+                            b.superficie, b.descriptif_composition, b.contact, b.prix_m2,
+                            b.prix_vent, b.prix_location, b.disponabilite, b.remarque,
+                            b.date_premiere_contact, b.visite, b.Fiche_identification_bien,
+                            b.Fiche_de_renseignement, b.Localisation, b.ID_identification,
+                            b.Id_Renseignement
+                        ))
+
+                    await cursor.executemany(
+                        '''
+                        INSERT INTO Basedonne (
+                            type_bien, action_commercial, nom_prenom, Zone, adresse, superficie,
+                            descriptif_composition, contact, prix_m2, prix_vent, prix_location,
+                            disponabilite, remarque, date_premiere_contact, visite,
+                            Fiche_identification_bien, Fiche_de_renseignement, Localisation,
+                            ID_identification, Id_Renseignement
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ''',
+                        values
+                    )
+                    await conn.commit()
+
+    except Exception as e:
+        logging.error(f"Error during database operation: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while importing basedonne data: {e}")
+
+    return {"message": "Basedonne data imported successfully"}
+
 
 
 from fastapi.middleware.cors import CORSMiddleware
