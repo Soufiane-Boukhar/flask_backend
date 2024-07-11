@@ -235,13 +235,15 @@ async def object_import(suivers: list[SuiverCreate]):
         ) as pool:
             async with pool.acquire() as conn:
                 async with conn.cursor() as cursor:
-                    values = [
+                   values = [
                         (
                             s.representant, s.nom, s.mode_retour, s.activite, s.contact,
                             s.type_bien, s.action, s.budget, s.superficie, s.zone,
                             s.type_accompagnement, s.prix_alloue, s.services_clotures,
                             s.services_a_cloturer, s.ok_nok, s.annexes, s.ca_previsionnel,
-                            s.ca_realise, s.total_ca, s.status, s.created_date, s.update_date
+                            s.ca_realise, s.total_ca, s.status,
+                            datetime.strptime(s.created_date, '%d/%m/%Y').strftime('%Y-%m-%d'),
+                            datetime.strptime(s.update_date, '%d/%m/%Y').strftime('%Y-%m-%d')
                         )
                         for s in suivers
                     ]

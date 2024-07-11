@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload XLSX and Send to API</title>
+</head>
+<body>
+    <h2>Upload XLSX File</h2>
+    <form id="xlsxForm">
+        <input type="file" id="xlsxFile" accept=".xlsx" required>
+        <button type="submit">Upload</button>
+    </form>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
+    <script>
+        document.getElementById('xlsxForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const fileInput = document.getElementById('xlsxFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a file.');
+                return;
+            }
+
+            // Convert XLSX to JSON
+            const jsonData = await convertXLSXToJson(file);
+
+            console.log(jsonData);
+
+            // Validate and parse numeric fields
+            jsonData.forEach(item => {
+                // Example: Validate and parse superficie field
+                if (typeof item.superficie === 'string') {
+                    const parsedValue = parseFloat(item.superficie);
+                    if (!isNaN(parsedValue)) {
+                        item.superficie = parsedValue;
+                    } else {
+                        console.error(`Invalid superficie value: ${item.superficie}`);
+                        // Handle error or set a default value
+                        item.superficie = 0; // Or any default value
+                    }
+                }
+
+                // Repeat similar checks for other numeric fields like total_ca, budget, ca_realise, etc.
+                // Example for total_ca
+                if (typeof item.total_ca === 'string') {
+                    const parsedValue = parseFloat(item.total_ca);
+                    if (!isNaN(parsedValue)) {
+                        item.total_ca = parsedValue;
+                    } else {
+                        console.error(`Invalid total_ca value: ${item.total_ca}`);
+                        // Handle error or set a default value
+                        item.total_ca = 0; // Or any default value
+                    }
+                }
+            });
+
+            // Send JSON data to backend API
+            const apiUrl = 'https://apifast.vercel.app/SuiverProjet';
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(jsonData)
+            });
+
+            if (response.ok) {
+                alert('Data uploaded successfully.');
+            } else {
+                const responseData = await response.json().catch(() => null);
+                console.error('Failed to upload data:', response.status, response.statusText, responseData);
+                alert('Error uploading data. See console for details.');
+            }
+        });
+
+        async function convertXLSXToJson(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {
+                        raw: false, // Ensure dates are not parsed as raw values
+                        dateNF: 'yyyy-mm-dd', // Specify date format if needed
+                        defval: '' // Default value for empty cells
+                    });
+
+                    // Example: Fix date format if 'created_date' is a date field
+                    jsonData.forEach(item => {
+                        if (item.created_date instanceof Date) {
+                            item.created_date = formatDate(item.created_date); // Format date
+                        }
+                    });
+
+                    resolve(jsonData);
+                };
+                reader.onerror = function(event) {
+                    reject(event.target.error);
+                };
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // Function to format date as needed (example)
+        function formatDate(date) {
+            // Format as 'yyyy-mm-dd'
+            const formattedDate = `${date.getFullYear()}-${padNumber(date.getMonth() + 1)}-${padNumber(date.getDate())}`;
+            return formattedDate;
+        }
+
+        // Function to pad numbers with leading zeros (example)
+        function padNumber(number) {
+            return number.toString().padStart(2, '0');
+        }
+    </script
