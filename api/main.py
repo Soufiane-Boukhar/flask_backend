@@ -12,6 +12,7 @@ from typing import Optional, List, Union
 import pandas as pd
 import io
 import re
+import decimal
 
 app = FastAPI()
 
