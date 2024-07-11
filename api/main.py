@@ -238,7 +238,6 @@ def clean_budget(budget_str: str) -> float:
     except ValueError:
         raise HTTPException(status_code=422, detail=f"Invalid budget value: {budget_str}")
 
-# Define your endpoint
 @app.post('/objectImport')
 async def object_import(suivers: List[SuiverCreate]):
     try:
@@ -256,11 +255,12 @@ async def object_import(suivers: List[SuiverCreate]):
                 async with conn.cursor() as cursor:
                     values = []
                     for s in suivers:
-                        # Ensure contact is treated as string
-                        s.contact = str(s.contact)
+                        # Ensure contact is treated as string or None
+                        s.contact = str(s.contact) if s.contact is not None else None
                         
                         # Clean and convert budget value
-                        s.budget = clean_budget(s.budget)
+                        if s.budget:
+                            s.budget = clean_budget(s.budget)
                         
                         values.append((
                             s.representant, s.nom, s.mode_retour, s.activite, s.contact,
@@ -278,7 +278,7 @@ async def object_import(suivers: List[SuiverCreate]):
                             budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures, 
                             services_a_cloturer, ok_nok, annexes, ca_previsionnel, ca_realise, 
                             total_ca, status, created_date, update_date
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ''',
                         values
                     )
@@ -289,7 +289,7 @@ async def object_import(suivers: List[SuiverCreate]):
         raise HTTPException(status_code=500, detail=f"An error occurred while importing the data: {e}")
 
     return {"message": "Projects registered successfully"}
-    
+
 from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
