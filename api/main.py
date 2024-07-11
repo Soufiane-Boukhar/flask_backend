@@ -342,9 +342,9 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                                 b.Date_premier_contact = None  # Set to None if empty
 
                             # Validate and convert numeric fields
-                            prix_m2 = float(b.Prix_unitaire_M2) if b.Prix_unitaire_M2 and b.Prix_unitaire_M2.strip() else None
-                            prix_vent = float(b.Prix_de_vente) if b.Prix_de_vente and b.Prix_de_vente.strip() else None
-                            prix_location = float(b.Prix_de_location) if b.Prix_de_location and b.Prix_de_location.strip() else None
+                            prix_m2 = float(b.Prix_unitaire_M2) if b.Prix_unitaire_M2.strip() else None
+                            prix_vent = float(b.Prix_de_vente) if b.Prix_de_vente.strip() else None
+                            prix_location = float(b.Prix_de_location) if b.Prix_de_location.strip() else None
 
                             values.append((
                                 b.Type_de_bien, b.Action_commerciale, b.Nom_et_Prénom, b.Zone, b.Adresse,
@@ -359,6 +359,12 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                             continue
 
                     if values:
+                        # Replace empty strings with None for numeric fields
+                        values = [
+                            tuple(None if v == "" else v for v in entry)
+                            for entry in values
+                        ]
+
                         await cursor.executemany(
                             '''
                             INSERT INTO Basedonne (
