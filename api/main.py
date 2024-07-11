@@ -320,6 +320,8 @@ async def object_import(suivers: List[SuiverCreate]):
     return {"message": "Projects registered successfully"}
 
 
+import decimal
+
 @app.post('/basedonneImport')
 async def basedonne_import(basedonnes: List[BasedonneCreate]):
     try:
@@ -327,7 +329,7 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
             async with pool.acquire() as conn:
                 async with conn.cursor() as cursor:
                     values = []
-                    for b in basedonnes:
+                    for index, b in enumerate(basedonnes, start=1):
                         try:
                             # Convert date format if present
                             if b.Date_premier_contact:
@@ -337,9 +339,21 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                            
                             # Convert numeric fields to appropriate types
                             superficie = float(b.Superficie) if b.Superficie is not None else None
-                            prix_m2 = float(b.Prix_unitaire_M2) if b.Prix_unitaire_M2 is not None else None
-                            prix_vent = float(b.Prix_de_vente) if b.Prix_de_vente is not None else None
-                            prix_location = float(b.Prix_de_location) if b.Prix_de_location is not None else None
+                            
+                            # Handle potential out-of-range values
+                            try:
+                                prix_m2 = decimal.Decimal(b.Prix_unitaire_M2) if b.Prix_unitaire_M2 is not None else None
+                                prix_vent = decimal.Decimal(b.Prix_de_vente) if b.Prix_de_vente is not None else None
+                                prix_location = decimal.Decimal(b.Prix_de_location) if b.Prix_de_location is not None else None
+                                
+                                # Cap values if they exceed the maximum allowed
+                                max_decimal = decimal.Decimal('9999999.99')  # Adjust based on your column definition
+                                prix_m2 = min(prix_m2, max_decimal) if prix_m2 is not None else None
+                                prix_vent = min(prix_vent, max_decimal) if prix_vent is not None else None
+                                prix_location = min(prix_location, max_decimal) if prix_location is not None else None
+                            except decimal.InvalidOperation:
+                                logging.warning(f"Invalid numeric value in row {index}. Setting to None.")
+                                prix_m2, prix_vent, prix_location = None, None, None
 
                             values.append((
                                 b.Type_de_bien, b.Action_commerciale, b.Nom_et_Prénom, b.Zone, b.Adresse,
@@ -350,7 +364,7 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                                 b.Localisation, b.ID_identification, b.Id_Renseignement
                             ))
                         except ValueError as ve:
-                            logging.error(f"Error parsing fields: {ve}. Skipping entry.")
+                            logging.error(f"Error parsing fields in row {index}: {ve}. Skipping entry.")
                             continue
                     if values:
                         await cursor.executemany(
