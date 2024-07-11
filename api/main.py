@@ -230,6 +230,15 @@ async def register_suiver(suiver: SuiverCreate):
 
 
 
+def clean_budget(budget_str: str) -> float:
+    # Remove spaces and any non-numeric characters
+    cleaned_value = re.sub(r'[^\d.]', '', budget_str)
+    try:
+        return float(cleaned_value)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"Invalid budget value: {budget_str}")
+
+# Define your endpoint
 @app.post('/objectImport')
 async def object_import(suivers: List[SuiverCreate]):
     try:
@@ -249,6 +258,9 @@ async def object_import(suivers: List[SuiverCreate]):
                     for s in suivers:
                         # Ensure contact is treated as string
                         s.contact = str(s.contact)
+                        
+                        # Clean and convert budget value
+                        s.budget = clean_budget(s.budget)
                         
                         values.append((
                             s.representant, s.nom, s.mode_retour, s.activite, s.contact,
