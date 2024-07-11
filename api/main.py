@@ -88,26 +88,26 @@ class SuiverCreate(BaseModel):
     update_date: Optional[str] = None
 
 class BasedonneCreate(BaseModel):
-    Type_de_bien: str
-    Action_commerciale: str
-    Nom_et_Prénom: str
-    Zone: str
-    Adresse: str
-    Superficie: str
-    Descriptif_Comp: str
-    Contact: str
+    Type_de_bien: Optional[str]
+    Action_commerciale: Optional[str]
+    Nom_et_Prénom: Optional[str]
+    Zone: Optional[str]
+    Adresse: Optional[str]
+    Superficie: Optional[str]
+    Descriptif_Comp: Optional[str]
+    Contact: Optional[str]
     Prix_unitaire_M2: Optional[float]
     Prix_de_vente: Optional[float]
     Prix_de_location: Optional[float]
-    Disponibilité: str
-    Remarque: str
+    Disponibilité: Optional[str]
+    Remarque: Optional[str]
     Date_premier_contact: Optional[str]
-    Visite: str
-    Fiche_identification_bien: str
-    Fiche_de_renseignement: str
-    Localisation: str
-    ID_identification: str
-    Id_Renseignement: str
+    Visite: Optional[str]
+    Fiche_identification_bien: Optional[str]
+    Fiche_de_renseignement: Optional[str]
+    Localisation: Optional[str]
+    ID_identification: Optional[str]
+    Id_Renseignement: Optional[str]
 
 
 def convert_date(date_str: str) -> str:
