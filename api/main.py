@@ -8,7 +8,7 @@ import hmac
 import hashlib
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 import pandas as pd
 import io
 
@@ -85,6 +85,14 @@ class SuiverCreate(BaseModel):
     status: Optional[str] = None
     created_date: Optional[str] = None
     update_date: Optional[str] = None
+
+def convert_date(date_str: str) -> str:
+    try:
+        # Convert the date from 'DD/MM/YYYY' to 'YYYY/MM/DD'
+        date_obj = datetime.strptime(date_str, '%d/%m/%Y')
+        return date_obj.strftime('%Y/%m/%d')
+    except ValueError:
+        raise ValueError(f"Incorrect date format: {date_str}")
 
 @app.get("/contacts")
 async def get_contacts():
@@ -221,16 +229,10 @@ async def register_suiver(suiver: SuiverCreate):
 
 
 
-def convert_date(date_str: str) -> str:
-    try:
-        # Convert the date from 'DD/MM/YYYY' to 'YYYY/MM/DD'
-        date_obj = datetime.strptime(date_str, '%d/%m/%Y')
-        return date_obj.strftime('%Y/%m/%d')
-    except ValueError:
-        raise ValueError(f"Incorrect date format: {date_str}")
+
 
 @app.post('/objectImport')
-async def object_import(suivers: list[SuiverCreate]):
+async def object_import(suivers: List[SuiverCreate]):
     try:
         # Establish database connection
         async with aiomysql.create_pool(
@@ -244,7 +246,7 @@ async def object_import(suivers: list[SuiverCreate]):
         ) as pool:
             async with pool.acquire() as conn:
                 async with conn.cursor() as cursor:
-                     values = [
+                    values = [
                         (
                             s.representant, s.nom, s.mode_retour, s.activite, str(s.contact),
                             s.type_bien, s.action, float(str(s.budget).replace(' ', '')),
@@ -274,7 +276,6 @@ async def object_import(suivers: list[SuiverCreate]):
         raise HTTPException(status_code=500, detail=f"An error occurred while importing the data: {e}")
 
     return JSONResponse(content={"message": "Projects registered successfully"})
-
 
 from fastapi.middleware.cors import CORSMiddleware
 
