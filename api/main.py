@@ -244,13 +244,13 @@ async def object_import(suivers: list[SuiverCreate]):
         ) as pool:
             async with pool.acquire() as conn:
                 async with conn.cursor() as cursor:
-                    values = [
+                     values = [
                         (
-                            s.representant, s.nom, s.mode_retour, s.activite, s.contact,
-                            s.type_bien, s.action, s.budget, s.superficie, s.zone,
-                            s.type_accompagnement, s.prix_alloue, s.services_clotures,
-                            s.services_a_cloturer, s.ok_nok, s.annexes, s.ca_previsionnel,
-                            s.ca_realise, s.total_ca, s.status,
+                            s.representant, s.nom, s.mode_retour, s.activite, str(s.contact),
+                            s.type_bien, s.action, float(str(s.budget).replace(' ', '')),
+                            s.superficie, s.zone, s.type_accompagnement, s.prix_alloue,
+                            s.services_clotures, s.services_a_cloturer, s.ok_nok, s.annexes,
+                            s.ca_previsionnel, s.ca_realise, s.total_ca, s.status,
                             convert_date(s.created_date), convert_date(s.update_date)
                         )
                         for s in suivers
