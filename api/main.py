@@ -238,7 +238,6 @@ def clean_budget(budget_str: str) -> float:
     except ValueError:
         raise HTTPException(status_code=422, detail=f"Invalid budget value: {budget_str}")
 
-# Define your endpoint
 @app.post('/objectImport')
 async def object_import(suivers: List[SuiverCreate]):
     try:
