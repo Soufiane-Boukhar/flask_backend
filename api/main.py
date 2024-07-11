@@ -339,6 +339,8 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                         # Example: convert date format
                         if b.Date_premier_contact:
                             b.Date_premier_contact = convert_date(b.Date_premier_contact)
+                        else:
+                            b.Date_premier_contact = None  # Set to None if empty
                             
                         values.append((
                             b.Type_de_bien, b.Action_commerciale, b.Nom_et_Prénom, b.Zone, b.Adresse,
