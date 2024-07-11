@@ -87,6 +87,29 @@ class SuiverCreate(BaseModel):
     created_date: Optional[str] = None
     update_date: Optional[str] = None
 
+class BasedonneCreate(BaseModel):
+    type_bien: Optional[str] = None
+    action_commercial: Optional[str] = None
+    nom_prenom: Optional[str] = None
+    Zone: Optional[str] = None
+    adresse: Optional[str] = None
+    superficie: Optional[float] = None
+    descriptif_composition: Optional[str] = None
+    contact: Optional[str] = None
+    prix_m2: Optional[float] = None
+    prix_vent: Optional[float] = None
+    prix_location: Optional[float] = None
+    disponabilite: Optional[str] = None
+    remarque: Optional[str] = None
+    date_premiere_contact: Optional[str] = None
+    visite: Optional[str] = None
+    Fiche_identification_bien: Optional[str] = None
+    Fiche_de_renseignement: Optional[str] = None
+    Localisation: Optional[str] = None
+    ID_identification: Optional[str] = None
+    Id_Renseignement: Optional[str] = None
+
+
 def convert_date(date_str: str) -> str:
     try:
         # Convert the date from 'DD/MM/YYYY' to 'YYYY/MM/DD'
@@ -239,11 +262,11 @@ def clean_budget(budget_str: str) -> float:
     except ValueError:
         raise HTTPException(status_code=422, detail=f"Invalid budget value: {budget_str}")
 
-@app.post('/objectImport')
-async def object_import(suivers: List[SuiverCreate]):
+@app.post('/basedonneImport')
+async def object_import(suivers: list[BasedonneCreate] = Body(...)):
     try:
-        # Establish database connection
-        async with aiomysql.create_pool(
+        # Establish database connection pool
+        pool = await aiomysql.create_pool(
             host=DB_CONFIG['host'],
             port=DB_CONFIG['port'],
             user=DB_CONFIG['user'],
@@ -251,48 +274,144 @@ async def object_import(suivers: List[SuiverCreate]):
             db=DB_CONFIG['db'],
             ssl=DB_CONFIG['ssl'],
             autocommit=DB_CONFIG['autocommit']
-        ) as pool:
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cursor:
-                    values = []
-                    for s in suivers:
-                        # Ensure contact is treated as string or None
-                        s.contact = str(s.contact) if s.contact is not None else None
-                        
-                        # Clean and convert budget value
-                        if s.budget:
-                            s.budget = str(s.budget)  # Convert float to string
-                            s.budget = clean_budget(s.budget)  # Example function to clean budget data
+        )
 
-                        # Convert other fields as needed
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                values = []
+                for s in suivers:
+                    values.append((
+                        s.type_bien, s.action_commercial, s.nom_prenom, s.Zone, s.adresse,
+                        s.superficie, s.descriptif_composition, s.contact, s.prix_m2, s.prix_vent,
+                        s.prix_location, s.disponabilite, s.remarque, s.date_premiere_contact,
+                        s.visite, s.Fiche_identification_bien, s.Fiche_de_renseignement, s.Localisation,
+                        s.ID_identification, s.Id_Renseignement
+                    ))
 
-                        values.append((
-                            s.representant, s.nom, s.mode_retour, s.activite, s.contact,
-                            s.type_bien, s.action, s.budget, s.superficie, s.zone,
-                            s.type_accompagnement, s.services_clotures,
-                            s.services_a_cloturer, s.ok_nok, s.ca_previsionnel,
-                            s.ca_realise, s.status,
-                            convert_date(s.created_date), convert_date(s.update_date)
-                        ))
+                # Execute the SQL INSERT statement
+                await cursor.executemany(
+                    '''
+                    INSERT INTO Basedonne (
+                        type_bien, action_commercial, nom_prenom, Zone, adresse, superficie, 
+                        descriptif_composition, contact, prix_m2, prix_vent, prix_location, 
+                        disponabilite, remarque, date_premiere_contact, visite, Fiche_identification_bien, 
+                        Fiche_de_renseignement, Localisation, ID_identification, Id_Renseignement
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ''',
+                    values
+                )
 
-                    await cursor.executemany(
-                        '''
-                        INSERT INTO project_tracking (
-                            representant, nom, mode_retour, activite, contact, type_bien, action, 
-                            budget, superficie, zone, type_accompagnement, services_clotures, 
-                            services_a_cloturer, ok_nok, ca_previsionnel, ca_realise, 
-                            status, created_date, update_date
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ''',
-                        values
-                    )
-                    await conn.commit()
+                # Commit the transaction to persist changes
+                await conn.commit()
 
     except Exception as e:
-        logging.error(f"Error during database operation: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred while importing the data: {e}")
+        # Rollback transaction on error and raise HTTPException
+        if 'conn' in locals():
+            await conn.rollback()
+            await conn.close()
+            pool.close()
+            await pool.wait_closed()
+        raise HTTPException(status_code=500, detail=f"Error importing objects: {str(e)}")
+    finally:
+        pool.close()
+        await pool.wait_closed()
 
-    return {"message": "Projects registered successfully"}
+    return {"message": "Objects imported successfully"}
+
+
+@app.post('/basedonneImport')
+async def object_import(objects: list[BasedonneModel]):
+    try:
+        # Establish a connection to your MySQL database
+        mydb = mysql.connector.connect(
+            host="your_host",
+            user="your_username",
+            password="your_password",
+            database="your_database"
+        )
+
+        # Create a cursor object to execute SQL queries
+        mycursor = mydb.cursor()
+
+        # Construct and execute the SQL INSERT statement in a loop for each object
+        for obj in objects:
+            sql = """
+            INSERT INTO Basedonne (
+                type_bien, action_commercial, nom_prenom, Zone, adresse, superficie, 
+                descriptif_composition, contact, prix_m2, prix_vent, prix_location, 
+                disponabilite, remarque, date_premiere_contact, visite, Fiche_identification_bien, 
+                Fiche_de_renseignement, Localisation, ID_identification, Id_Renseignement
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            val = (
+                obj.type_bien, obj.action_commercial, obj.nom_prenom, obj.Zone, obj.adresse,
+                obj.superficie, obj.descriptif_composition, obj.contact, obj.prix_m2, obj.prix_vent,
+                obj.prix_location, obj.disponabilite, obj.remarque, obj.date_premiere_contact,
+                obj.visite, obj.Fiche_identification_bien, obj.Fiche_de_renseignement, obj.Localisation,
+                obj.ID_identification, obj.Id_Renseignement
+            )
+
+            mycursor.execute(sql, val)
+
+        # Commit the transaction to persist changes
+        mydb.commit()
+
+        # Close the cursor and database connection
+        mycursor.close()
+        mydb.close()
+
+        return {"message": "Objects imported successfully"}
+
+    except Exception as e:
+        # Rollback transaction on error and raise HTTPException
+        mydb.rollback()
+        raise HTTPException(status_code=500, detail=f"Error importing objects: {str(e)}")@app.post('/basedonneImport')
+async def object_import(objects: list[BasedonneModel]):
+    try:
+        # Establish a connection to your MySQL database
+        mydb = mysql.connector.connect(
+            host="your_host",
+            user="your_username",
+            password="your_password",
+            database="your_database"
+        )
+
+        # Create a cursor object to execute SQL queries
+        mycursor = mydb.cursor()
+
+        # Construct and execute the SQL INSERT statement in a loop for each object
+        for obj in objects:
+            sql = """
+            INSERT INTO Basedonne (
+                type_bien, action_commercial, nom_prenom, Zone, adresse, superficie, 
+                descriptif_composition, contact, prix_m2, prix_vent, prix_location, 
+                disponabilite, remarque, date_premiere_contact, visite, Fiche_identification_bien, 
+                Fiche_de_renseignement, Localisation, ID_identification, Id_Renseignement
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            val = (
+                obj.type_bien, obj.action_commercial, obj.nom_prenom, obj.Zone, obj.adresse,
+                obj.superficie, obj.descriptif_composition, obj.contact, obj.prix_m2, obj.prix_vent,
+                obj.prix_location, obj.disponabilite, obj.remarque, obj.date_premiere_contact,
+                obj.visite, obj.Fiche_identification_bien, obj.Fiche_de_renseignement, obj.Localisation,
+                obj.ID_identification, obj.Id_Renseignement
+            )
+
+            mycursor.execute(sql, val)
+
+        # Commit the transaction to persist changes
+        mydb.commit()
+
+        # Close the cursor and database connection
+        mycursor.close()
+        mydb.close()
+
+        return {"message": "Objects imported successfully"}
+
+    except Exception as e:
+        # Rollback transaction on error and raise HTTPException
+        mydb.rollback()
+        raise HTTPException(status_code=500, detail=f"Error importing objects: {str(e)}")
 
 
 from fastapi.middleware.cors import CORSMiddleware
