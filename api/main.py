@@ -334,34 +334,44 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                 async with conn.cursor() as cursor:
                     values = []
                     for b in basedonnes:
-                        # Convert date format if present
-                        if b.Date_premier_contact:
-                            b.Date_premier_contact = convert_date(b.Date_premier_contact)
-                        else:
-                            b.Date_premier_contact = None  # Set to None if empty
+                        try:
+                            # Convert date format if present
+                            if b.Date_premier_contact:
+                                b.Date_premier_contact = convert_date(b.Date_premier_contact)
+                            else:
+                                b.Date_premier_contact = None  # Set to None if empty
 
-                        values.append((
-                            b.Type_de_bien, b.Action_commerciale, b.Nom_et_Prénom, b.Zone, b.Adresse,
-                            b.Superficie, b.Descriptif_Comp, b.Contact,
-                            b.Prix_unitaire_M2, b.Prix_de_vente, b.Prix_de_location,
-                            b.Disponibilité, b.Remarque, b.Date_premier_contact, b.Visite,
-                            b.Fiche_identification_du_bien, b.Fiche_de_renseignement,
-                            b.Localisation, b.ID_identification, b.Id_Renseignement
-                        ))
+                            # Validate and convert numeric fields
+                            prix_m2 = float(b.Prix_unitaire_M2) if b.Prix_unitaire_M2 else None
+                            prix_vent = float(b.Prix_de_vente) if b.Prix_de_vente else None
+                            prix_location = float(b.Prix_de_location) if b.Prix_de_location else None
 
-                    await cursor.executemany(
-                        '''
-                        INSERT INTO Basedonne (
-                            type_bien, action_commercial, nom_prenom, zone, adresse, superficie,
-                            descriptif_composition, contact, prix_m2, prix_vent, prix_location,
-                            disponabilite, remarque, date_premiere_contact, visite,
-                            Fiche_identification_bien, Fiche_de_renseignement, Localisation,
-                            ID_identification, Id_Renseignement
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ''',
-                        values
-                    )
-                    await conn.commit()
+                            values.append((
+                                b.Type_de_bien, b.Action_commerciale, b.Nom_et_Prénom, b.Zone, b.Adresse,
+                                b.Superficie, b.Descriptif_Comp, b.Contact,
+                                prix_m2, prix_vent, prix_location,
+                                b.Disponibilité, b.Remarque, b.Date_premier_contact, b.Visite,
+                                b.Fiche_identification_du_bien, b.Fiche_de_renseignement,
+                                b.Localisation, b.ID_identification, b.Id_Renseignement
+                            ))
+                        except ValueError as ve:
+                            logging.error(f"Error parsing numeric fields: {ve}. Skipping entry.")
+                            continue
+
+                    if values:
+                        await cursor.executemany(
+                            '''
+                            INSERT INTO Basedonne (
+                                type_bien, action_commercial, nom_prenom, zone, adresse, superficie,
+                                descriptif_composition, contact, prix_m2, prix_vent, prix_location,
+                                disponabilite, remarque, date_premiere_contact, visite,
+                                Fiche_identification_bien, Fiche_de_renseignement, Localisation,
+                                ID_identification, Id_Renseignement
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            ''',
+                            values
+                        )
+                        await conn.commit()
 
     except Exception as e:
         logging.error(f"Error during database operation: {e}")
