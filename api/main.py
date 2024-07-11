@@ -8,7 +8,7 @@ import hmac
 import hashlib
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import Optional, List, Union
 import pandas as pd
 import io
 import re
@@ -93,12 +93,12 @@ class BasedonneCreate(BaseModel):
     Nom_et_Prénom: Optional[str]
     Zone: Optional[str]
     Adresse: Optional[str]
-    Superficie: Optional[str]
+    Superficie: Optional[Union[str, int, float]]
     Descriptif_Comp: Optional[str]
     Contact: Optional[str]
-    Prix_unitaire_M2: Optional[str]
-    Prix_de_vente: Optional[str]
-    Prix_de_location: Optional[str]
+    Prix_unitaire_M2: Optional[Union[str, int, float]]
+    Prix_de_vente: Optional[Union[str, int, float]]
+    Prix_de_location: Optional[Union[str, int, float]]
     Disponibilité: Optional[str]
     Remarque: Optional[str]
     Date_premier_contact: Optional[str]
@@ -108,6 +108,9 @@ class BasedonneCreate(BaseModel):
     Localisation: Optional[str]
     ID_identification: Optional[str]
     Id_Renseignement: Optional[str]
+
+    class Config:
+        orm_mode = True
 
 def convert_date(date_str: str) -> str:
     try:
@@ -320,15 +323,7 @@ async def object_import(suivers: List[SuiverCreate]):
 @app.post('/basedonneImport')
 async def basedonne_import(basedonnes: List[BasedonneCreate]):
     try:
-        async with aiomysql.create_pool(
-            host=DB_CONFIG['host'],
-            port=DB_CONFIG['port'],
-            user=DB_CONFIG['user'],
-            password=DB_CONFIG['password'],
-            db=DB_CONFIG['db'],
-            ssl=DB_CONFIG['ssl'],
-            autocommit=DB_CONFIG['autocommit']
-        ) as pool:
+        async with aiomysql.create_pool(**DB_CONFIG) as pool:
             async with pool.acquire() as conn:
                 async with conn.cursor() as cursor:
                     values = []
@@ -340,21 +335,22 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                             else:
                                 b.Date_premier_contact = None  # Set to None if empty
                            
-                            # Handle empty numeric fields
-                            prix_m2 = float(b.Prix_unitaire_M2) if b.Prix_unitaire_M2 else None
-                            prix_vent = float(b.Prix_de_vente) if b.Prix_de_vente else None
-                            prix_location = float(b.Prix_de_location) if b.Prix_de_location else None
+                            # Convert numeric fields to appropriate types
+                            superficie = float(b.Superficie) if b.Superficie is not None else None
+                            prix_m2 = float(b.Prix_unitaire_M2) if b.Prix_unitaire_M2 is not None else None
+                            prix_vent = float(b.Prix_de_vente) if b.Prix_de_vente is not None else None
+                            prix_location = float(b.Prix_de_location) if b.Prix_de_location is not None else None
 
                             values.append((
                                 b.Type_de_bien, b.Action_commerciale, b.Nom_et_Prénom, b.Zone, b.Adresse,
-                                b.Superficie, b.Descriptif_Comp, b.Contact,
+                                superficie, b.Descriptif_Comp, b.Contact,
                                 prix_m2, prix_vent, prix_location,
                                 b.Disponibilité, b.Remarque, b.Date_premier_contact, b.Visite,
                                 b.Fiche_identification_du_bien, b.Fiche_de_renseignement,
                                 b.Localisation, b.ID_identification, b.Id_Renseignement
                             ))
                         except ValueError as ve:
-                            logging.error(f"Error parsing numeric fields: {ve}. Skipping entry.")
+                            logging.error(f"Error parsing fields: {ve}. Skipping entry.")
                             continue
                     if values:
                         await cursor.executemany(
