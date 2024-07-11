@@ -322,7 +322,7 @@ async def object_import(suivers: List[SuiverCreate]):
 async def object_import(suivers: list[BasedonneCreate] = Body(...)):
     try:
         # Establish database connection pool
-        pool = await aiomysql.create_pool(
+        async with aiomysql.create_pool(
             host=DB_CONFIG['host'],
             port=DB_CONFIG['port'],
             user=DB_CONFIG['user'],
@@ -330,50 +330,49 @@ async def object_import(suivers: list[BasedonneCreate] = Body(...)):
             db=DB_CONFIG['db'],
             ssl=DB_CONFIG['ssl'],
             autocommit=DB_CONFIG['autocommit']
-        )
+        ) as pool:
+            async with pool.acquire() as conn:
+                async with conn.cursor() as cursor:
+                    values = []
+                    for s in suivers:
+                        values.append((
+                            s.type_bien, s.action_commercial, s.nom_prenom, s.Zone, s.adresse,
+                            s.superficie, s.descriptif_composition, s.contact, s.prix_m2, s.prix_vent,
+                            s.prix_location, s.disponabilite, s.remarque, s.date_premiere_contact,
+                            s.visite, s.Fiche_identification_bien, s.Fiche_de_renseignement, s.Localisation,
+                            s.ID_identification, s.Id_Renseignement
+                        ))
 
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                values = []
-                for s in suivers:
-                    values.append((
-                        s.type_bien, s.action_commercial, s.nom_prenom, s.Zone, s.adresse,
-                        s.superficie, s.descriptif_composition, s.contact, s.prix_m2, s.prix_vent,
-                        s.prix_location, s.disponabilite, s.remarque, s.date_premiere_contact,
-                        s.visite, s.Fiche_identification_bien, s.Fiche_de_renseignement, s.Localisation,
-                        s.ID_identification, s.Id_Renseignement
-                    ))
+                    # Execute the SQL INSERT statement
+                    await cursor.executemany(
+                        '''
+                        INSERT INTO Basedonne (
+                            type_bien, action_commercial, nom_prenom, Zone, adresse, superficie, 
+                            descriptif_composition, contact, prix_m2, prix_vent, prix_location, 
+                            disponabilite, remarque, date_premiere_contact, visite, Fiche_identification_bien, 
+                            Fiche_de_renseignement, Localisation, ID_identification, Id_Renseignement
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ''',
+                        values
+                    )
 
-                # Execute the SQL INSERT statement
-                await cursor.executemany(
-                    '''
-                    INSERT INTO Basedonne (
-                        type_bien, action_commercial, nom_prenom, Zone, adresse, superficie, 
-                        descriptif_composition, contact, prix_m2, prix_vent, prix_location, 
-                        disponabilite, remarque, date_premiere_contact, visite, Fiche_identification_bien, 
-                        Fiche_de_renseignement, Localisation, ID_identification, Id_Renseignement
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ''',
-                    values
-                )
-
-                # Commit the transaction to persist changes
-                await conn.commit()
+                    # Commit the transaction to persist changes
+                    await conn.commit()
 
     except Exception as e:
         # Rollback transaction on error and raise HTTPException
-        if 'conn' in locals():
+        if 'conn' in locals() and conn.is_connected():
             await conn.rollback()
             await conn.close()
             pool.close()
             await pool.wait_closed()
         raise HTTPException(status_code=500, detail=f"Error importing objects: {str(e)}")
     finally:
-        pool.close()
-        await pool.wait_closed()
+        if 'pool' in locals():
+            pool.close()
+            await pool.wait_closed()
 
     return {"message": "Objects imported successfully"}
-
 
 from fastapi.middleware.cors import CORSMiddleware
 
