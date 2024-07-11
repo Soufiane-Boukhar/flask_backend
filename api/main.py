@@ -88,26 +88,26 @@ class SuiverCreate(BaseModel):
     update_date: Optional[str] = None
 
 class BasedonneCreate(BaseModel):
-    type_bien: Optional[str] = None
-    action_commercial: Optional[str] = None
-    nom_prenom: Optional[str] = None
-    Zone: Optional[str] = None
-    adresse: Optional[str] = None
-    superficie: Optional[float] = None
-    descriptif_composition: Optional[str] = None
-    contact: Optional[str] = None
-    prix_m2: Optional[float] = None
-    prix_vent: Optional[float] = None
-    prix_location: Optional[float] = None
-    disponabilite: Optional[str] = None
-    remarque: Optional[str] = None
-    date_premiere_contact: Optional[str] = None
-    visite: Optional[str] = None
-    Fiche_identification_bien: Optional[str] = None
-    Fiche_de_renseignement: Optional[str] = None
-    Localisation: Optional[str] = None
-    ID_identification: Optional[str] = None
-    Id_Renseignement: Optional[str] = None
+    Type_de_bien: str
+    Action_commerciale: str
+    Nom_et_Prénom: str
+    Zone: str
+    Adresse: str
+    Superficie: Optional[float]
+    Descriptif_Comp: str
+    Contact: str
+    Prix_unitaire_M2: Optional[float]
+    Prix_de_vente: Optional[float]
+    Prix_de_location: Optional[float]
+    Disponibilité: str
+    Remarque: Optional[str]
+    Date_premier_contact: Optional[str]
+    Visite: Optional[str]
+    Fiche_identification_du_bien: str
+    Fiche_de_renseignement: Optional[str]
+    Localisation: Optional[str]
+    ID_identification: Optional[str]
+    Id_Renseignement: Optional[str]
 
 
 def convert_date(date_str: str) -> str:
@@ -337,14 +337,14 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                     for b in basedonnes:
                         # Clean and convert data as needed
                         # Example: convert date format
-                        if b.date_premiere_contact:
-                            b.date_premiere_contact = convert_date(b.date_premiere_contact)
+                        if b.Date_premier_contact:
+                            b.Date_premier_contact = convert_date(b.Date_premier_contact)
                             
                         values.append((
-                            b.type_bien, b.action_commercial, b.nom_prenom, b.Zone, b.adresse,
-                            b.superficie, b.descriptif_composition, b.contact, b.prix_m2,
-                            b.prix_vent, b.prix_location, b.disponabilite, b.remarque,
-                            b.date_premiere_contact, b.visite, b.Fiche_identification_bien,
+                            b.Type_de_bien, b.Action_commerciale, b.Nom_et_Prénom, b.Zone, b.Adresse,
+                            b.Superficie, b.Descriptif_Comp, b.Contact, b.Prix_unitaire_M2,
+                            b.Prix_de_vente, b.Prix_de_location, b.Disponibilité, b.Remarque,
+                            b.Date_premier_contact, b.Visite, b.Fiche_identification_du_bien,
                             b.Fiche_de_renseignement, b.Localisation, b.ID_identification,
                             b.Id_Renseignement
                         ))
@@ -352,10 +352,10 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                     await cursor.executemany(
                         '''
                         INSERT INTO Basedonne (
-                            type_bien, action_commercial, nom_prenom, Zone, adresse, superficie,
-                            descriptif_composition, contact, prix_m2, prix_vent, prix_location,
-                            disponabilite, remarque, date_premiere_contact, visite,
-                            Fiche_identification_bien, Fiche_de_renseignement, Localisation,
+                            Type_de_bien, Action_commerciale, Nom_et_Prénom, Zone, Adresse, Superficie,
+                            Descriptif_Comp, Contact, Prix_unitaire_M2, Prix_de_vente, Prix_de_location,
+                            Disponibilité, Remarque, Date_premier_contact, Visite,
+                            Fiche_identification_du_bien, Fiche_de_renseignement, Localisation,
                             ID_identification, Id_Renseignement
                         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ''',
@@ -368,6 +368,7 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
         raise HTTPException(status_code=500, detail=f"An error occurred while importing basedonne data: {e}")
 
     return {"message": "Basedonne data imported successfully"}
+
 
 
 
