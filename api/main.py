@@ -115,7 +115,6 @@ class BasedonneCreate(BaseModel):
 
 def convert_date(date_str: str) -> str:
     try:
-        # Convert the date from 'DD/MM/YYYY' to 'YYYY/MM/DD'
         date_obj = datetime.strptime(date_str, '%d/%m/%Y')
         return date_obj.strftime('%Y/%m/%d')
     except ValueError:
@@ -258,7 +257,6 @@ async def register_suiver(suiver: SuiverCreate):
 
 
 def clean_budget(budget_str: str) -> float:
-    # Remove spaces and any non-numeric characters
     cleaned_value = re.sub(r'[^\d.]', '', budget_str)
     try:
         return float(cleaned_value)
@@ -268,7 +266,6 @@ def clean_budget(budget_str: str) -> float:
 @app.post('/objectImport')
 async def object_import(suivers: List[SuiverCreate]):
     try:
-        # Establish database connection
         async with aiomysql.create_pool(
             host=DB_CONFIG['host'],
             port=DB_CONFIG['port'],
@@ -282,15 +279,12 @@ async def object_import(suivers: List[SuiverCreate]):
                 async with conn.cursor() as cursor:
                     values = []
                     for s in suivers:
-                        # Ensure contact is treated as string or None
                         s.contact = str(s.contact) if s.contact is not None else None
                         
-                        # Clean and convert budget value
                         if s.budget:
-                            s.budget = str(s.budget)  # Convert float to string
-                            s.budget = clean_budget(s.budget)  # Example function to clean budget data
+                            s.budget = str(s.budget)  
+                            s.budget = clean_budget(s.budget) 
 
-                        # Convert other fields as needed
 
                         values.append((
                             s.representant, s.nom, s.mode_retour, s.activite, s.contact,
@@ -332,23 +326,19 @@ async def basedonne_import(basedonnes: List[BasedonneCreate]):
                     values = []
                     for index, b in enumerate(basedonnes, start=1):
                         try:
-                            # Convert date format if present
                             if b.Date_premier_contact:
                                 b.Date_premier_contact = convert_date(b.Date_premier_contact)
                             else:
-                                b.Date_premier_contact = None  # Set to None if empty
+                                b.Date_premier_contact = None 
                            
-                            # Convert numeric fields to appropriate types
                             superficie = float(b.Superficie) if b.Superficie is not None else None
                             
-                            # Handle potential out-of-range values
                             try:
                                 prix_m2 = decimal.Decimal(b.Prix_unitaire_M2) if b.Prix_unitaire_M2 is not None else None
                                 prix_vent = decimal.Decimal(b.Prix_de_vente) if b.Prix_de_vente is not None else None
                                 prix_location = decimal.Decimal(b.Prix_de_location) if b.Prix_de_location is not None else None
                                 
-                                # Cap values if they exceed the maximum allowed
-                                max_decimal = decimal.Decimal('9999999.99')  # Adjust based on your column definition
+                                max_decimal = decimal.Decimal('9999999.99') 
                                 prix_m2 = min(prix_m2, max_decimal) if prix_m2 is not None else None
                                 prix_vent = min(prix_vent, max_decimal) if prix_vent is not None else None
                                 prix_location = min(prix_location, max_decimal) if prix_location is not None else None
@@ -394,23 +384,19 @@ async def basedonne_insert_single(basedonne: BasedonneCreate):
             async with pool.acquire() as conn:
                 async with conn.cursor() as cursor:
                     try:
-                        # Convert date format if present
                         if basedonne.Date_premier_contact:
                             basedonne.Date_premier_contact = convert_date(basedonne.Date_premier_contact)
                         else:
-                            basedonne.Date_premier_contact = None  # Set to None if empty
+                            basedonne.Date_premier_contact = None 
                        
-                        # Convert numeric fields to appropriate types
                         superficie = float(basedonne.Superficie) if basedonne.Superficie is not None else None
                         
-                        # Handle potential out-of-range values
                         try:
                             prix_m2 = decimal.Decimal(basedonne.Prix_unitaire_M2) if basedonne.Prix_unitaire_M2 is not None else None
                             prix_vent = decimal.Decimal(basedonne.Prix_de_vente) if basedonne.Prix_de_vente is not None else None
                             prix_location = decimal.Decimal(basedonne.Prix_de_location) if basedonne.Prix_de_location is not None else None
                             
-                            # Cap values if they exceed the maximum allowed
-                            max_decimal = decimal.Decimal('9999999.99')  # Adjust based on your column definition
+                            max_decimal = decimal.Decimal('9999999.99') 
                             prix_m2 = min(prix_m2, max_decimal) if prix_m2 is not None else None
                             prix_vent = min(prix_vent, max_decimal) if prix_vent is not None else None
                             prix_location = min(prix_location, max_decimal) if prix_location is not None else None
