@@ -230,7 +230,6 @@ async def register_suiver(suiver: SuiverCreate):
 
 
 
-
 @app.post('/objectImport')
 async def object_import(suivers: List[SuiverCreate]):
     try:
@@ -246,17 +245,24 @@ async def object_import(suivers: List[SuiverCreate]):
         ) as pool:
             async with pool.acquire() as conn:
                 async with conn.cursor() as cursor:
-                    values = [
-                        (
-                            s.representant, s.nom, s.mode_retour, s.activite, str(s.contact),
-                            s.type_bien, s.action, float(str(s.budget).replace(' ', '')),
-                            s.superficie, s.zone, s.type_accompagnement, s.prix_alloue,
-                            s.services_clotures, s.services_a_cloturer, s.ok_nok, s.annexes,
-                            s.ca_previsionnel, s.ca_realise, s.total_ca, s.status,
+                    values = []
+                    for s in suivers:
+                        # Ensure `contact` is converted to string
+                        if s.contact and not isinstance(s.contact, str):
+                            s.contact = str(s.contact)
+                        
+                        # Ensure `budget` is parsed correctly
+                        if s.budget and isinstance(s.budget, str):
+                            s.budget = float(s.budget.replace(' ', ''))
+                        
+                        values.append((
+                            s.representant, s.nom, s.mode_retour, s.activite, s.contact,
+                            s.type_bien, s.action, s.budget, s.superficie, s.zone,
+                            s.type_accompagnement, s.prix_alloue, s.services_clotures,
+                            s.services_a_cloturer, s.ok_nok, s.annexes, s.ca_previsionnel,
+                            s.ca_realise, s.total_ca, s.status,
                             convert_date(s.created_date), convert_date(s.update_date)
-                        )
-                        for s in suivers
-                    ]
+                        ))
 
                     await cursor.executemany(
                         '''
