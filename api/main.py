@@ -269,9 +269,9 @@ async def object_import(suivers: List[SuiverCreate]):
                         values.append((
                             s.representant, s.nom, s.mode_retour, s.activite, s.contact,
                             s.type_bien, s.action, s.budget, s.superficie, s.zone,
-                            s.type_accompagnement, s.prix_alloue, s.services_clotures,
-                            s.services_a_cloturer, s.ok_nok, s.annexes, s.ca_previsionnel,
-                            s.ca_realise, s.total_ca, s.status,
+                            s.type_accompagnement, s.services_clotures,
+                            s.services_a_cloturer, s.ok_nok, s.ca_previsionnel,
+                            s.ca_realise, s.status,
                             convert_date(s.created_date), convert_date(s.update_date)
                         ))
 
@@ -279,10 +279,10 @@ async def object_import(suivers: List[SuiverCreate]):
                         '''
                         INSERT INTO project_tracking (
                             representant, nom, mode_retour, activite, contact, type_bien, action, 
-                            budget, superficie, zone, type_accompagnement, prix_alloue, services_clotures, 
-                            services_a_cloturer, ok_nok, annexes, ca_previsionnel, ca_realise, 
-                            total_ca, status, created_date, update_date
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            budget, superficie, zone, type_accompagnement, services_clotures, 
+                            services_a_cloturer, ok_nok, ca_previsionnel, ca_realise, 
+                            status, created_date, update_date
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ''',
                         values
                     )
@@ -293,6 +293,7 @@ async def object_import(suivers: List[SuiverCreate]):
         raise HTTPException(status_code=500, detail=f"An error occurred while importing the data: {e}")
 
     return {"message": "Projects registered successfully"}
+
 
 from fastapi.middleware.cors import CORSMiddleware
 
