@@ -247,13 +247,8 @@ async def object_import(suivers: List[SuiverCreate]):
                 async with conn.cursor() as cursor:
                     values = []
                     for s in suivers:
-                        # Ensure `contact` is converted to string
-                        if s.contact and not isinstance(s.contact, str):
-                            s.contact = str(s.contact)
-                        
-                        # Ensure `budget` is parsed correctly
-                        if s.budget and isinstance(s.budget, str):
-                            s.budget = float(s.budget.replace(' ', ''))
+                        # Ensure contact is treated as string
+                        s.contact = str(s.contact)
                         
                         values.append((
                             s.representant, s.nom, s.mode_retour, s.activite, s.contact,
@@ -281,7 +276,7 @@ async def object_import(suivers: List[SuiverCreate]):
         logging.error(f"Error during database operation: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while importing the data: {e}")
 
-    return JSONResponse(content={"message": "Projects registered successfully"})
+    return {"message": "Projects registered successfully"}
 
 from fastapi.middleware.cors import CORSMiddleware
 
