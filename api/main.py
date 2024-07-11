@@ -262,6 +262,62 @@ def clean_budget(budget_str: str) -> float:
     except ValueError:
         raise HTTPException(status_code=422, detail=f"Invalid budget value: {budget_str}")
 
+@app.post('/objectImport')
+async def object_import(suivers: List[SuiverCreate]):
+    try:
+        # Establish database connection
+        async with aiomysql.create_pool(
+            host=DB_CONFIG['host'],
+            port=DB_CONFIG['port'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            db=DB_CONFIG['db'],
+            ssl=DB_CONFIG['ssl'],
+            autocommit=DB_CONFIG['autocommit']
+        ) as pool:
+            async with pool.acquire() as conn:
+                async with conn.cursor() as cursor:
+                    values = []
+                    for s in suivers:
+                        # Ensure contact is treated as string or None
+                        s.contact = str(s.contact) if s.contact is not None else None
+                        
+                        # Clean and convert budget value
+                        if s.budget:
+                            s.budget = str(s.budget)  # Convert float to string
+                            s.budget = clean_budget(s.budget)  # Example function to clean budget data
+
+                        # Convert other fields as needed
+
+                        values.append((
+                            s.representant, s.nom, s.mode_retour, s.activite, s.contact,
+                            s.type_bien, s.action, s.budget, s.superficie, s.zone,
+                            s.type_accompagnement, s.services_clotures,
+                            s.services_a_cloturer, s.ok_nok, s.ca_previsionnel,
+                            s.ca_realise, s.status,
+                            convert_date(s.created_date), convert_date(s.update_date)
+                        ))
+
+                    await cursor.executemany(
+                        '''
+                        INSERT INTO project_tracking (
+                            representant, nom, mode_retour, activite, contact, type_bien, action, 
+                            budget, superficie, zone, type_accompagnement, services_clotures, 
+                            services_a_cloturer, ok_nok, ca_previsionnel, ca_realise, 
+                            status, created_date, update_date
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ''',
+                        values
+                    )
+                    await conn.commit()
+
+    except Exception as e:
+        logging.error(f"Error during database operation: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while importing the data: {e}")
+
+    return {"message": "Projects registered successfully"}
+
+
 @app.post('/basedonneImport')
 async def object_import(suivers: list[BasedonneCreate] = Body(...)):
     try:
@@ -317,101 +373,6 @@ async def object_import(suivers: list[BasedonneCreate] = Body(...)):
         await pool.wait_closed()
 
     return {"message": "Objects imported successfully"}
-
-
-@app.post('/basedonneImport')
-async def object_import(objects: list[BasedonneModel]):
-    try:
-        # Establish a connection to your MySQL database
-        mydb = mysql.connector.connect(
-            host="your_host",
-            user="your_username",
-            password="your_password",
-            database="your_database"
-        )
-
-        # Create a cursor object to execute SQL queries
-        mycursor = mydb.cursor()
-
-        # Construct and execute the SQL INSERT statement in a loop for each object
-        for obj in objects:
-            sql = """
-            INSERT INTO Basedonne (
-                type_bien, action_commercial, nom_prenom, Zone, adresse, superficie, 
-                descriptif_composition, contact, prix_m2, prix_vent, prix_location, 
-                disponabilite, remarque, date_premiere_contact, visite, Fiche_identification_bien, 
-                Fiche_de_renseignement, Localisation, ID_identification, Id_Renseignement
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """
-            val = (
-                obj.type_bien, obj.action_commercial, obj.nom_prenom, obj.Zone, obj.adresse,
-                obj.superficie, obj.descriptif_composition, obj.contact, obj.prix_m2, obj.prix_vent,
-                obj.prix_location, obj.disponabilite, obj.remarque, obj.date_premiere_contact,
-                obj.visite, obj.Fiche_identification_bien, obj.Fiche_de_renseignement, obj.Localisation,
-                obj.ID_identification, obj.Id_Renseignement
-            )
-
-            mycursor.execute(sql, val)
-
-        # Commit the transaction to persist changes
-        mydb.commit()
-
-        # Close the cursor and database connection
-        mycursor.close()
-        mydb.close()
-
-        return {"message": "Objects imported successfully"}
-
-    except Exception as e:
-        # Rollback transaction on error and raise HTTPException
-        mydb.rollback()
-        raise HTTPException(status_code=500, detail=f"Error importing objects: {str(e)}")@app.post('/basedonneImport')
-async def object_import(objects: list[BasedonneModel]):
-    try:
-        # Establish a connection to your MySQL database
-        mydb = mysql.connector.connect(
-            host="your_host",
-            user="your_username",
-            password="your_password",
-            database="your_database"
-        )
-
-        # Create a cursor object to execute SQL queries
-        mycursor = mydb.cursor()
-
-        # Construct and execute the SQL INSERT statement in a loop for each object
-        for obj in objects:
-            sql = """
-            INSERT INTO Basedonne (
-                type_bien, action_commercial, nom_prenom, Zone, adresse, superficie, 
-                descriptif_composition, contact, prix_m2, prix_vent, prix_location, 
-                disponabilite, remarque, date_premiere_contact, visite, Fiche_identification_bien, 
-                Fiche_de_renseignement, Localisation, ID_identification, Id_Renseignement
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """
-            val = (
-                obj.type_bien, obj.action_commercial, obj.nom_prenom, obj.Zone, obj.adresse,
-                obj.superficie, obj.descriptif_composition, obj.contact, obj.prix_m2, obj.prix_vent,
-                obj.prix_location, obj.disponabilite, obj.remarque, obj.date_premiere_contact,
-                obj.visite, obj.Fiche_identification_bien, obj.Fiche_de_renseignement, obj.Localisation,
-                obj.ID_identification, obj.Id_Renseignement
-            )
-
-            mycursor.execute(sql, val)
-
-        # Commit the transaction to persist changes
-        mydb.commit()
-
-        # Close the cursor and database connection
-        mycursor.close()
-        mydb.close()
-
-        return {"message": "Objects imported successfully"}
-
-    except Exception as e:
-        # Rollback transaction on error and raise HTTPException
-        mydb.rollback()
-        raise HTTPException(status_code=500, detail=f"Error importing objects: {str(e)}")
 
 
 from fastapi.middleware.cors import CORSMiddleware
