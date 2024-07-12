@@ -238,9 +238,16 @@ async def login(user_login: UserLogin):
                     }
                 })
 
+    except aiomysql.Error as e:
+        logging.error(f"AIOMySQL Error during login: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred during login")
+
+    except HTTPException as http_error:
+        raise http_error
+
     except Exception as e:
         logging.error(f"Error during login: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred during login")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during login")
 
     finally:
         if 'pool' in locals():
