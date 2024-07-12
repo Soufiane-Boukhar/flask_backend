@@ -8,11 +8,7 @@ import hmac
 import hashlib
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional, List, Union
-import pandas as pd
-import io
-import re
-import decimal
+from typing import Optional, Union, Dict, Any
 
 app = FastAPI()
 
@@ -39,12 +35,12 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
-def create_hmac_token(data: dict) -> str:
+def create_hmac_token(data: Dict[str, Any]) -> str:
     """Create an HMAC token using the SECRET_KEY."""
     message = str(data).encode()
     return hmac.new(SECRET_KEY.encode(), message, hashlib.sha256).hexdigest()
 
-def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
+def create_access_token(data: Dict[str, Any], expires_delta: timedelta = None) -> str:
     """Create an access token using HMAC."""
     to_encode = data.copy()
     if expires_delta:
@@ -140,7 +136,6 @@ async def get_contacts():
                 results = await cursor.fetchall()
 
                 column_names = [desc[0] for desc in cursor.description]
-
                 contacts = [dict(zip(column_names, row)) for row in results]
 
     except Exception as e:
@@ -174,14 +169,15 @@ async def register_user(user: UserCreate):
                     'INSERT INTO users (name, email, password) VALUES (%s, %s, %s)',
                     (user.name, user.email, hashed_password)
                 )
+                user_id = cursor.lastrowid
 
-                 await cursor.execute(
+                default_role_id = 1  # Assuming a default role ID for new users
+                await cursor.execute(
                     'INSERT INTO user_roles (user_id, role_id) VALUES (%s, %s)',
-                    (user_id, default_role_id) 
+                    (user_id, default_role_id)
                 )
 
                 await conn.commit()
-            
 
     except Exception as e:
         logging.error(f"Error: {e}")
@@ -209,9 +205,7 @@ async def login(user: UserLogin):
                 if db_password is None or not verify_password(user.password, db_password[0]):
                     raise HTTPException(status_code=401, detail="Invalid credentials")
 
-                access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-            
-            await cursor.execute('''
+                await cursor.execute('''
                     SELECT u.id, u.name, u.email, r.name as role
                     FROM users u
                     JOIN user_roles ur ON u.id = ur.user_id
@@ -220,14 +214,17 @@ async def login(user: UserLogin):
                 ''', (user.email,))
                 user_data = await cursor.fetchone()
 
-                access_token = create_access_token(data={"sub": user_data['email'], "role": user_data['role']})
+                if user_data is None:
+                    raise HTTPException(status_code=404, detail="User not found")
 
+                access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+                access_token = create_access_token(data={"sub": user_data['email'], "role": user_data['role']}, expires_delta=access_token_expires)
 
     except Exception as e:
         logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred during login: {e}")
 
-    return {"access_token": access_token, "token_type": "bearer", "user": user_data}
+    return JSONResponse(content={"access_token": access_token, "token_type": "bearer", "user": user_data})
 
 
 @app.post('/SuiverProjet')
