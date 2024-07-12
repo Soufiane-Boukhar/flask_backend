@@ -193,14 +193,12 @@ async def register_user(user: UserCreate):
 
 
 async def get_role_names_by_ids(role_ids):
-    # Example implementation assuming role_ids is a list of integers
-    # Replace with actual logic to fetch role names from your database or another source
+ 
     role_names = {
         1: "Admin",
         2: "User",
-        # Add more role IDs and names as needed
     }
-    return [role_names.get(role_id, "Unknown Role") for role_id in role_ids]
+    return [role_names.get(str(role_id), "Unknown Role") for role_id in role_ids]
 
 @app.post("/login")
 async def login(user_login: UserLogin):
