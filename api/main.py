@@ -8,7 +8,11 @@ import hmac
 import hashlib
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional, Union, Dict, Any
+from typing import Optional, List, Union
+import pandas as pd
+import io
+import re
+import decimal
 
 app = FastAPI()
 
@@ -35,12 +39,12 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
-def create_hmac_token(data: Dict[str, Any]) -> str:
+def create_hmac_token(data: dict) -> str:
     """Create an HMAC token using the SECRET_KEY."""
     message = str(data).encode()
     return hmac.new(SECRET_KEY.encode(), message, hashlib.sha256).hexdigest()
 
-def create_access_token(data: Dict[str, Any], expires_delta: timedelta = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
     """Create an access token using HMAC."""
     to_encode = data.copy()
     if expires_delta:
@@ -116,7 +120,34 @@ def convert_date(date_str: str) -> str:
     except ValueError:
         raise ValueError(f"Incorrect date format: {date_str}")
 
+@app.get("/contacts")
+async def get_contacts():
+    try:
+        pool = await aiomysql.create_pool(
+            host=DB_CONFIG['host'],
+            port=DB_CONFIG['port'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            db=DB_CONFIG['db'],
+            ssl=DB_CONFIG['ssl'],
+            autocommit=DB_CONFIG['autocommit']
+        )
 
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                sql_select = 'SELECT * FROM contacts'
+                await cursor.execute(sql_select)
+                results = await cursor.fetchall()
+
+                column_names = [desc[0] for desc in cursor.description]
+
+                contacts = [dict(zip(column_names, row)) for row in results]
+
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data from the contacts table: {e}")
+
+    return JSONResponse(content={"contacts": contacts})
 
 @app.post("/register")
 async def register_user(user: UserCreate):
@@ -143,22 +174,12 @@ async def register_user(user: UserCreate):
                     'INSERT INTO users (name, email, password) VALUES (%s, %s, %s)',
                     (user.name, user.email, hashed_password)
                 )
-                user_id = cursor.lastrowid
-
-                default_role_id = 1  # Assuming a default role ID for new users
-                await cursor.execute(
-                    'INSERT INTO user_roles (user_id, role_id) VALUES (%s, %s)',
-                    (user_id, default_role_id)
-                )
 
                 await conn.commit()
 
     except Exception as e:
-        logging.error(f"Error during user registration: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred while registering the user.")
-    finally:
-        pool.close()
-        await pool.wait_closed()
+        logging.error(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while registering the user: {e}")
 
     return JSONResponse(content={"message": "User registered successfully"})
 
@@ -182,31 +203,14 @@ async def login(user: UserLogin):
                 if db_password is None or not verify_password(user.password, db_password[0]):
                     raise HTTPException(status_code=401, detail="Invalid credentials")
 
-                await cursor.execute('''
-                    SELECT u.id, u.name, u.email, r.name as role
-                    FROM users u
-                    JOIN user_roles ur ON u.id = ur.user_id
-                    JOIN roles r ON ur.role_id = r.id
-                    WHERE u.email = %s
-                ''', (user.email,))
-                user_data = await cursor.fetchone()
-
-                if user_data is None:
-                    raise HTTPException(status_code=404, detail="User not found")
-
                 access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-                access_token = create_access_token(data={"sub": user_data[2], "role": user_data[3]}, expires_delta=access_token_expires)
+                access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
 
     except Exception as e:
-        logging.error(f"Error during login: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred during login.")
-    finally:
-        pool.close()
-        await pool.wait_closed()
+        logging.error(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred during login: {e}")
 
-    return JSONResponse(content={"access_token": access_token, "token_type": "bearer", "user": {"id": user_data[0], "name": user_data[1], "email": user_data[2], "role": user_data[3]}})
-
-
+    return JSONResponse(content={"access_token": access_token})
 
 @app.post('/SuiverProjet')
 async def register_suiver(suiver: SuiverCreate):
