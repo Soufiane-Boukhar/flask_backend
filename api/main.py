@@ -194,9 +194,9 @@ async def register_user(user: UserCreate):
 
 
 @app.post("/login")
-async def login(user: UserLogin):
+async def login(email: str, password: str):
     try:
-        async with aiomysql.create_pool(
+        pool = await aiomysql.create_pool(
             host=DB_CONFIG['host'],
             port=DB_CONFIG['port'],
             user=DB_CONFIG['user'],
@@ -204,28 +204,41 @@ async def login(user: UserLogin):
             db=DB_CONFIG['db'],
             ssl=DB_CONFIG['ssl'],
             autocommit=DB_CONFIG['autocommit']
-        ) as pool:
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cursor:
-                    await cursor.execute('''
-                        SELECT u.id, u.name, u.email, u.password, r.name as role
-                        FROM users u
-                        JOIN user_roles ur ON u.id = ur.user_id
-                        JOIN roles r ON ur.role_id = r.id
-                        WHERE u.email = %s
-                    ''', (user.email,))
-                    user_data = await cursor.fetchone()
-                    if user_data is None or not verify_password(user.password, user_data[3]):
-                        raise HTTPException(status_code=401, detail="Invalid credentials")
+        )
 
-                    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-                    access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute('SELECT id, name, password FROM users WHERE email=%s', (email,))
+                user = await cursor.fetchone()
+
+                if not user or not verify_password(password, user[2]):
+                    raise HTTPException(status_code=400, detail="Invalid credentials")
+
+                user_id = user[0]
+                await cursor.execute('SELECT role_id FROM user_roles WHERE user_id=%s', (user_id,))
+                roles = await cursor.fetchall()
+                role_ids = [role[0] for role in roles]
+
+                # Assuming you have a function to get role names by their IDs
+                user_roles = await get_role_names_by_ids(role_ids)
+
+                # Create a JWT token
+                access_token = create_access_token(user_id)
+
+                return JSONResponse(content={
+                    "access_token": access_token,
+                    "user": {
+                        "id": user_id,
+                        "name": user[1],
+                        "email": email,
+                        "roles": user_roles
+                    }
+                })
 
     except Exception as e:
         logging.error(f"Error: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred during login: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred during login")
 
-    return JSONResponse(content={"access_token": access_token, "user": {"id": user_data[0], "name": user_data[1], "email": user_data[2], "role": user_data[4]}})
 
 @app.post('/SuiverProjet')
 async def register_suiver(suiver: SuiverCreate):
