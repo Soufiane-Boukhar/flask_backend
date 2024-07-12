@@ -175,6 +175,14 @@ async def register_user(user: UserCreate):
                     (user.name, user.email, hashed_password)
                 )
 
+                user_id = cursor.lastrowid  # Get the last inserted user ID
+                default_role_id = 1  # Assuming 1 is the ID for the 'user' role, change as necessary
+
+                await cursor.execute(
+                    'INSERT INTO user_roles (user_id, role_id) VALUES (%s, %s)',
+                    (user_id, default_role_id)
+                )
+
                 await conn.commit()
 
     except Exception as e:
@@ -182,6 +190,7 @@ async def register_user(user: UserCreate):
         raise HTTPException(status_code=500, detail=f"An error occurred while registering the user: {e}")
 
     return JSONResponse(content={"message": "User registered successfully"})
+
 
 
 @app.post("/login")
