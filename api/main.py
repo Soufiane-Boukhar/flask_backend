@@ -265,6 +265,7 @@ async def login(user_login: UserLogin):
 
 
 
+
 @app.post('/SuiverProjet')
 async def register_suiver(suiver: SuiverCreate):
     try:
