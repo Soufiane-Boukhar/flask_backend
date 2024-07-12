@@ -193,12 +193,13 @@ async def register_user(user: UserCreate):
 
 
 async def get_role_names_by_ids(role_ids):
- 
+
     role_names = {
         1: "Admin",
-        2: "User",
+        2: "User"
     }
-    return [role_names.get(str(role_id), "Unknown Role") for role_id in role_ids]
+    return [role_names.get(role_id, "Unknown") for role_id in role_ids]
+
 
 @app.post("/login")
 async def login(user_login: UserLogin):
@@ -206,15 +207,7 @@ async def login(user_login: UserLogin):
     password = user_login.password
 
     try:
-        async with aiomysql.create_pool(
-            host=DB_CONFIG['host'],
-            port=DB_CONFIG['port'],
-            user=DB_CONFIG['user'],
-            password=DB_CONFIG['password'],
-            db=DB_CONFIG['db'],
-            ssl=DB_CONFIG['ssl'],
-            autocommit=DB_CONFIG['autocommit']
-        ) as pool:
+        async with aiomysql.create_pool(**DB_CONFIG) as pool:
             async with pool.acquire() as conn:
                 async with conn.cursor() as cursor:
                     await cursor.execute('SELECT id, name, password FROM users WHERE email=%s', (email,))
@@ -228,21 +221,26 @@ async def login(user_login: UserLogin):
                     role_records = await cursor.fetchall()
                     role_ids = [role[0] for role in role_records]
 
+                    if not role_ids:
+                        raise HTTPException(status_code=400, detail="User has no roles assigned")
+
                     # Fetch role names using function get_role_names_by_ids
                     user_roles = await get_role_names_by_ids(role_ids)
 
                     # Create a JWT token
-                    access_token = create_access_token(user_id)
+                    access_token_expires = timedelta(minutes=30)
+                    access_token = create_access_token({"sub": str(user_id)}, expires_delta=access_token_expires)
 
-                    return JSONResponse(content={
+                    return {
                         "access_token": access_token,
+                        "token_type": "bearer",
                         "user": {
                             "id": user_id,
                             "name": user[1],
                             "email": email,
                             "roles": user_roles
                         }
-                    })
+                    }
 
     except aiomysql.Error as e:
         error_message = f"AIOMySQL Error: {str(e)}"
