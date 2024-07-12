@@ -315,7 +315,6 @@ async def object_import(suivers: List[SuiverCreate]):
     return {"message": "Projects registered successfully"}
 
 
-import decimal
 
 @app.post('/basedonneImport')
 async def basedonne_import(basedonnes: List[BasedonneCreate]):
