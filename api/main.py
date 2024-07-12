@@ -239,8 +239,13 @@ async def login(user_login: UserLogin):
                 })
 
     except Exception as e:
-        logging.error(f"Error: {e}")
+        logging.error(f"Error during login: {e}")
         raise HTTPException(status_code=500, detail="An error occurred during login")
+
+    finally:
+        if 'pool' in locals():
+            pool.close()
+            await pool.wait_closed()
 
 
 @app.post('/SuiverProjet')
