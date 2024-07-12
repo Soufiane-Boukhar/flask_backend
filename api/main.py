@@ -175,7 +175,13 @@ async def register_user(user: UserCreate):
                     (user.name, user.email, hashed_password)
                 )
 
+                 await cursor.execute(
+                    'INSERT INTO user_roles (user_id, role_id) VALUES (%s, %s)',
+                    (user_id, default_role_id) 
+                )
+
                 await conn.commit()
+            
 
     except Exception as e:
         logging.error(f"Error: {e}")
@@ -204,13 +210,25 @@ async def login(user: UserLogin):
                     raise HTTPException(status_code=401, detail="Invalid credentials")
 
                 access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-                access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
+            
+            await cursor.execute('''
+                    SELECT u.id, u.name, u.email, r.name as role
+                    FROM users u
+                    JOIN user_roles ur ON u.id = ur.user_id
+                    JOIN roles r ON ur.role_id = r.id
+                    WHERE u.email = %s
+                ''', (user.email,))
+                user_data = await cursor.fetchone()
+
+                access_token = create_access_token(data={"sub": user_data['email'], "role": user_data['role']})
+
 
     except Exception as e:
         logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred during login: {e}")
 
-    return JSONResponse(content={"access_token": access_token})
+    return {"access_token": access_token, "token_type": "bearer", "user": user_data}
+
 
 @app.post('/SuiverProjet')
 async def register_suiver(suiver: SuiverCreate):
