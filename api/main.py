@@ -154,8 +154,8 @@ async def register_user(user: UserCreate):
                 await conn.commit()
 
     except Exception as e:
-        logging.error(f"Error: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred while registering the user: {e}")
+        logging.error(f"Error during user registration: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while registering the user.")
     finally:
         pool.close()
         await pool.wait_closed()
@@ -198,8 +198,8 @@ async def login(user: UserLogin):
                 access_token = create_access_token(data={"sub": user_data[2], "role": user_data[3]}, expires_delta=access_token_expires)
 
     except Exception as e:
-        logging.error(f"Error: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred during login: {e}")
+        logging.error(f"Error during login: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred during login.")
     finally:
         pool.close()
         await pool.wait_closed()
