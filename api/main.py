@@ -193,9 +193,14 @@ async def register_user(user: UserCreate):
 
 
 async def get_role_names_by_ids(role_ids):
-    roles = ["Admin" if role_id == 1 else "User" for role_id in role_ids]
-    return roles
-
+    # Example implementation assuming role_ids is a list of integers
+    # Replace with actual logic to fetch role names from your database or another source
+    role_names = {
+        1: "Admin",
+        2: "User",
+        # Add more role IDs and names as needed
+    }
+    return [role_names.get(role_id, "Unknown Role") for role_id in role_ids]
 
 @app.post("/login")
 async def login(user_login: UserLogin):
@@ -223,10 +228,10 @@ async def login(user_login: UserLogin):
 
                 user_id = user[0]
                 await cursor.execute('SELECT role_id FROM user_roles WHERE user_id=%s', (user_id,))
-                roles = await cursor.fetchall()
-                role_ids = [role[0] for role in roles]
+                role_records = await cursor.fetchall()
+                role_ids = [role[0] for role in role_records]
 
-                # Assuming you have a function to get role names by their IDs
+                # Fetch role names using function get_role_names_by_ids
                 user_roles = await get_role_names_by_ids(role_ids)
 
                 # Create a JWT token
@@ -257,6 +262,7 @@ async def login(user_login: UserLogin):
         if 'pool' in locals():
             pool.close()
             await pool.wait_closed()
+
 
 
 @app.post('/SuiverProjet')
