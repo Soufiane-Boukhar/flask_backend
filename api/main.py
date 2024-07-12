@@ -116,33 +116,7 @@ def convert_date(date_str: str) -> str:
     except ValueError:
         raise ValueError(f"Incorrect date format: {date_str}")
 
-@app.get("/contacts")
-async def get_contacts():
-    try:
-        pool = await aiomysql.create_pool(
-            host=DB_CONFIG['host'],
-            port=DB_CONFIG['port'],
-            user=DB_CONFIG['user'],
-            password=DB_CONFIG['password'],
-            db=DB_CONFIG['db'],
-            ssl=DB_CONFIG['ssl'],
-            autocommit=DB_CONFIG['autocommit']
-        )
 
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                sql_select = 'SELECT * FROM contacts'
-                await cursor.execute(sql_select)
-                results = await cursor.fetchall()
-
-                column_names = [desc[0] for desc in cursor.description]
-                contacts = [dict(zip(column_names, row)) for row in results]
-
-    except Exception as e:
-        logging.error(f"Error: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data from the contacts table: {e}")
-
-    return JSONResponse(content={"contacts": contacts})
 
 @app.post("/register")
 async def register_user(user: UserCreate):
@@ -182,6 +156,9 @@ async def register_user(user: UserCreate):
     except Exception as e:
         logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while registering the user: {e}")
+    finally:
+        pool.close()
+        await pool.wait_closed()
 
     return JSONResponse(content={"message": "User registered successfully"})
 
@@ -218,13 +195,17 @@ async def login(user: UserLogin):
                     raise HTTPException(status_code=404, detail="User not found")
 
                 access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-                access_token = create_access_token(data={"sub": user_data['email'], "role": user_data['role']}, expires_delta=access_token_expires)
+                access_token = create_access_token(data={"sub": user_data[2], "role": user_data[3]}, expires_delta=access_token_expires)
 
     except Exception as e:
         logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred during login: {e}")
+    finally:
+        pool.close()
+        await pool.wait_closed()
 
-    return JSONResponse(content={"access_token": access_token, "token_type": "bearer", "user": user_data})
+    return JSONResponse(content={"access_token": access_token, "token_type": "bearer", "user": {"id": user_data[0], "name": user_data[1], "email": user_data[2], "role": user_data[3]}})
+
 
 
 @app.post('/SuiverProjet')
