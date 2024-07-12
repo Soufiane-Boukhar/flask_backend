@@ -215,7 +215,7 @@ async def login(user_login: UserLogin):
                 user = await cursor.fetchone()
 
                 if not user or not verify_password(password, user[2]):
-                    raise HTTPException(status_code=400, detail="Invalid credentials")
+                    raise HTTPException(status_code=400, detail="Invalid email or password")
 
                 user_id = user[0]
                 await cursor.execute('SELECT role_id FROM user_roles WHERE user_id=%s', (user_id,))
@@ -239,15 +239,15 @@ async def login(user_login: UserLogin):
                 })
 
     except aiomysql.Error as e:
-        logging.error(f"AIOMySQL Error during login: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An error occurred during login")
+        error_message = f"AIOMySQL Error: {str(e)}"
+        raise HTTPException(status_code=500, detail=error_message)
 
     except HTTPException as http_error:
         raise http_error
 
     except Exception as e:
-        logging.error(f"Unexpected error during login: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An unexpected error occurred during login")
+        error_message = f"Unexpected error: {str(e)}"
+        raise HTTPException(status_code=500, detail=error_message)
 
     finally:
         if 'pool' in locals():
