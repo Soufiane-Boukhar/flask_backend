@@ -194,7 +194,10 @@ async def register_user(user: UserCreate):
 
 
 @app.post("/login")
-async def login(email: str, password: str):
+async def login(user_login: UserLogin):
+    email = user_login.email
+    password = user_login.password
+
     try:
         pool = await aiomysql.create_pool(
             host=DB_CONFIG['host'],
