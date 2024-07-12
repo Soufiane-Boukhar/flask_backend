@@ -235,7 +235,6 @@ async def login(user_login: UserLogin):
                         "access_token": access_token,
                         "token_type": "bearer",
                         "user": {
-                            "id": user_id,
                             "name": user[1],
                             "email": email,
                             "roles": user_roles
