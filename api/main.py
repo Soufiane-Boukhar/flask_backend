@@ -206,7 +206,7 @@ async def login(user_login: UserLogin):
     password = user_login.password
 
     try:
-        pool = await aiomysql.create_pool(
+        async with aiomysql.create_pool(
             host=DB_CONFIG['host'],
             port=DB_CONFIG['port'],
             user=DB_CONFIG['user'],
@@ -214,36 +214,35 @@ async def login(user_login: UserLogin):
             db=DB_CONFIG['db'],
             ssl=DB_CONFIG['ssl'],
             autocommit=DB_CONFIG['autocommit']
-        )
+        ) as pool:
+            async with pool.acquire() as conn:
+                async with conn.cursor() as cursor:
+                    await cursor.execute('SELECT id, name, password FROM users WHERE email=%s', (email,))
+                    user = await cursor.fetchone()
 
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                await cursor.execute('SELECT id, name, password FROM users WHERE email=%s', (email,))
-                user = await cursor.fetchone()
+                    if not user or not verify_password(password, user[2]):
+                        raise HTTPException(status_code=400, detail="Invalid email or password")
 
-                if not user or not verify_password(password, user[2]):
-                    raise HTTPException(status_code=400, detail="Invalid email or password")
+                    user_id = user[0]
+                    await cursor.execute('SELECT role_id FROM user_roles WHERE user_id=%s', (user_id,))
+                    role_records = await cursor.fetchall()
+                    role_ids = [role[0] for role in role_records]
 
-                user_id = user[0]
-                await cursor.execute('SELECT role_id FROM user_roles WHERE user_id=%s', (user_id,))
-                role_records = await cursor.fetchall()
-                role_ids = [role[0] for role in role_records]
+                    # Fetch role names using function get_role_names_by_ids
+                    user_roles = await get_role_names_by_ids(role_ids)
 
-                # Fetch role names using function get_role_names_by_ids
-                user_roles = await get_role_names_by_ids(role_ids)
+                    # Create a JWT token
+                    access_token = create_access_token(user_id)
 
-                # Create a JWT token
-                access_token = create_access_token(user_id)
-
-                return JSONResponse(content={
-                    "access_token": access_token,
-                    "user": {
-                        "id": user_id,
-                        "name": user[1],
-                        "email": email,
-                        "roles": user_roles
-                    }
-                })
+                    return JSONResponse(content={
+                        "access_token": access_token,
+                        "user": {
+                            "id": user_id,
+                            "name": user[1],
+                            "email": email,
+                            "roles": user_roles
+                        }
+                    })
 
     except aiomysql.Error as e:
         error_message = f"AIOMySQL Error: {str(e)}"
@@ -255,13 +254,6 @@ async def login(user_login: UserLogin):
     except Exception as e:
         error_message = f"Unexpected error: {str(e)}"
         raise HTTPException(status_code=500, detail=error_message)
-
-    finally:
-        if 'pool' in locals():
-            pool.close()
-            await pool.wait_closed()
-
-
 
 
 @app.post('/SuiverProjet')
