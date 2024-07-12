@@ -192,6 +192,10 @@ async def register_user(user: UserCreate):
     return JSONResponse(content={"message": "User registered successfully"})
 
 
+async def get_role_names_by_ids(role_ids):
+    roles = ["Admin" if role_id == 1 else "User" for role_id in role_ids]
+    return roles
+
 
 @app.post("/login")
 async def login(user_login: UserLogin):
