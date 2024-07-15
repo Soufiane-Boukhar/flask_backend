@@ -472,37 +472,48 @@ async def basedonne_insert_single(basedonne: BasedonneCreate):
     return {"message": "Basedonne data inserted successfully"}
 
 
-@app.get('/getBasedonne')
-async def get_basedonne(
-    limit: int = Query(100, ge=1, le=1000),
-    offset: int = Query(0, ge=0)
-):
+class BasedonneResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BasedonneItem]
+
+@app.get('/basedonneGetAll', response_model=BasedonneResponse)
+async def basedonne_get_all():
     try:
         async with aiomysql.create_pool(**DB_CONFIG) as pool:
             async with pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cursor:
-                    sql_select = 'SELECT * FROM Basedonne LIMIT %s OFFSET %s'
-                    await cursor.execute(sql_select, (limit, offset))
-                    result = await cursor.fetchall()
+                    await cursor.execute('SELECT * FROM Basedonne')
+                    results = await cursor.fetchall()
                     
-                    basedonne = []
-                    for row in result:
-                        try:
-                            row = {k: float(v) if isinstance(v, decimal.Decimal) else v for k, v in row.items()}
-                            row = {k: v.isoformat() if isinstance(v, (datetime, date)) else v for k, v in row.items()}
-                            basedonne.append(row)
-                        except Exception as e:
-                            logging.error(f"Error processing row: {e}")
-                            continue 
-
-    except aiomysql.Error as e:
-        logging.error(f"Database error in get_basedonne: {e}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+                    # Convert decimal.Decimal to float and handle date formatting
+                    for result in results:
+                        for key, value in result.items():
+                            if isinstance(value, decimal.Decimal):
+                                result[key] = float(value)
+                            elif isinstance(value, datetime.date):
+                                result[key] = value.isoformat()
+                    
+                    basedonne_items = [BasedonneItem(**item) for item in results]
+                    
+                    return JSONResponse(
+                        status_code=200,
+                        content={
+                            "status": "success",
+                            "message": "Data retrieved successfully",
+                            "data": [item.dict() for item in basedonne_items]
+                        }
+                    )
     except Exception as e:
-        logging.error(f"Unexpected error in get_basedonne: {e}")
-        raise HTTPException(status_code=500, detail="An unexpected error occurred")
-
-    return JSONResponse(content={'basedonne': basedonne})
+        logging.error(f"Error during database operation: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": f"An error occurred while fetching basedonne data: {str(e)}",
+                "data": []
+            }
+        )
 
 
 from fastapi.middleware.cors import CORSMiddleware
