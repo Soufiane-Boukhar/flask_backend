@@ -483,23 +483,26 @@ class CustomJSONEncoder(json.JSONEncoder):
 @app.get('/basedonneGetAll')
 async def basedonne_get_all():
     try:
-        async with aiomysql.create_pool(**DB_CONFIG) as pool:
-            async with pool.acquire() as conn:
-                async with conn.cursor(aiomysql.DictCursor) as cursor:
-                    await cursor.execute('SELECT * FROM Basedonne')
-                    results = await cursor.fetchall()
-                    
-                    # Convert results to a JSON-serializable format
-                    serializable_results = json.loads(json.dumps(results, cls=CustomJSONEncoder))
-                    
-                    return JSONResponse(
-                        status_code=200,
-                        content={
-                            "status": "success",
-                            "message": "Data retrieved successfully",
-                            "data": serializable_results
-                        }
-                    )
+        pool_kwargs = {k: v for k, v in DB_CONFIG.items() if v is not None}
+        
+        pool = await aiomysql.create_pool(**pool_kwargs)
+        
+        async with pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cursor:
+                await cursor.execute('SELECT * FROM Basedonne')
+                results = await cursor.fetchall()
+                
+                serializable_results = json.loads(json.dumps(results, cls=CustomJSONEncoder))
+                
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "status": "success",
+                        "message": "Data retrieved successfully",
+                        "data": serializable_results
+                    }
+                )
+                
     except Exception as e:
         logging.error(f"Error during database operation: {e}")
         return JSONResponse(
@@ -510,7 +513,7 @@ async def basedonne_get_all():
                 "data": []
             }
         )
-        
+
 from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
