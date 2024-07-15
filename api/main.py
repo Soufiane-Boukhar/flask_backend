@@ -472,14 +472,6 @@ async def basedonne_insert_single(basedonne: BasedonneCreate):
     return {"message": "Basedonne data inserted successfully"}
 
 
-Certainly. I'll modify the code to match the structure you've provided. Here's the updated version for the basedonneGetAll endpoint:
-pythonCopyfrom fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
-import aiomysql
-import logging
-
-app = FastAPI()
-
 @app.get("/basedonneGetAll")
 async def basedonne_get_all():
     try:
@@ -489,8 +481,8 @@ async def basedonne_get_all():
             user=DB_CONFIG['user'],
             password=DB_CONFIG['password'],
             db=DB_CONFIG['db'],
-            ssl=DB_CONFIG['ssl'],
-            autocommit=DB_CONFIG['autocommit']
+            ssl=DB_CONFIG.get('ssl'),  # Use .get() in case 'ssl' is not in DB_CONFIG
+            autocommit=DB_CONFIG.get('autocommit', True)
         )
 
         async with pool.acquire() as conn:
@@ -501,20 +493,29 @@ async def basedonne_get_all():
 
                 column_names = [desc[0] for desc in cursor.description]
 
-                basedonne_data = [dict(zip(column_names, row)) for row in results]
-
-                # Convert Decimal to float for JSON serialization
-                for item in basedonne_data:
-                    for key, value in item.items():
+                basedonne_data = []
+                for row in results:
+                    item = {}
+                    for i, value in enumerate(row):
                         if isinstance(value, decimal.Decimal):
-                            item[key] = float(value)
+                            item[column_names[i]] = float(value)
+                        elif isinstance(value, bytes):
+                            item[column_names[i]] = value.decode('utf-8', errors='replace')
+                        else:
+                            item[column_names[i]] = value
+                    basedonne_data.append(item)
 
+        await pool.close()
+        return JSONResponse(content={"basedonne": basedonne_data})
+
+    except aiomysql.Error as db_error:
+        logger.error(f"Database error: {db_error}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Database error occurred: {str(db_error)}")
     except Exception as e:
-        logging.error(f"Error: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data from the Basedonne table: {e}")
-
-    return JSONResponse(content={"basedonne": basedonne_data})
-    
+        logger.error(f"Unexpected error: {e}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 from fastapi.middleware.cors import CORSMiddleware
 
