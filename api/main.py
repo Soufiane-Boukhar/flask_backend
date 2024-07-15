@@ -486,14 +486,21 @@ async def basedonne_get_all():
                     await cursor.execute('SELECT * FROM Basedonne')
                     results = await cursor.fetchall()
                     
+                    processed_results = []
                     for result in results:
+                        processed_item = {}
                         for key, value in result.items():
                             if isinstance(value, decimal.Decimal):
-                                result[key] = float(value)
+                                processed_item[key] = float(value)
                             elif isinstance(value, datetime.date):
-                                result[key] = value.isoformat()
+                                processed_item[key] = value.isoformat()
+                            elif isinstance(value, (int, float, str, type(None))):
+                                processed_item[key] = value
+                            else:
+                                processed_item[key] = str(value) 
+                        processed_results.append(processed_item)
                     
-                    basedonne_items = [BasedonneItem(**item) for item in results]
+                    basedonne_items = [BasedonneItem(**item) for item in processed_results]
                     
                     return JSONResponse(
                         status_code=200,
