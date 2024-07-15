@@ -472,12 +472,15 @@ async def basedonne_insert_single(basedonne: BasedonneCreate):
     return {"message": "Basedonne data inserted successfully"}
 
 
-class BasedonneResponse(BaseModel):
-    status: str
-    message: str
-    data: List[BasedonneCreate]
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, decimal.Decimal):
+            return float(obj)
+        if isinstance(obj, datetime.date):
+            return obj.isoformat()
+        return super().default(obj)
 
-@app.get('/basedonneGetAll', response_model=BasedonneResponse)
+@app.get('/basedonneGetAll')
 async def basedonne_get_all():
     try:
         async with aiomysql.create_pool(**DB_CONFIG) as pool:
@@ -486,28 +489,15 @@ async def basedonne_get_all():
                     await cursor.execute('SELECT * FROM Basedonne')
                     results = await cursor.fetchall()
                     
-                    processed_results = []
-                    for result in results:
-                        processed_item = {}
-                        for key, value in result.items():
-                            if isinstance(value, decimal.Decimal):
-                                processed_item[key] = float(value)
-                            elif isinstance(value, datetime.date):
-                                processed_item[key] = value.isoformat()
-                            elif isinstance(value, (int, float, str, type(None))):
-                                processed_item[key] = value
-                            else:
-                                processed_item[key] = str(value) 
-                        processed_results.append(processed_item)
-                    
-                    basedonne_items = [BasedonneItem(**item) for item in processed_results]
+                    # Convert results to a JSON-serializable format
+                    serializable_results = json.loads(json.dumps(results, cls=CustomJSONEncoder))
                     
                     return JSONResponse(
                         status_code=200,
                         content={
                             "status": "success",
                             "message": "Data retrieved successfully",
-                            "data": [item.dict() for item in basedonne_items]
+                            "data": serializable_results
                         }
                     )
     except Exception as e:
@@ -520,8 +510,7 @@ async def basedonne_get_all():
                 "data": []
             }
         )
-
-
+        
 from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
