@@ -13,6 +13,8 @@ import pandas as pd
 import io
 import re
 import decimal
+import json
+
 
 app = FastAPI()
 
@@ -471,21 +473,33 @@ async def basedonne_insert_single(basedonne: BasedonneCreate):
 
 
 @app.get('/getBasedonne')
-async def get_basedonne():
+async def get_basedonne(
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0)
+):
     try:
         async with aiomysql.create_pool(**DB_CONFIG) as pool:
             async with pool.acquire() as conn:
-                async with conn.cursor() as cursor:
-                    sql_select = 'SELECT * FROM Basedonne'
-                    await cursor.execute(sql_select)
+                async with conn.cursor(aiomysql.DictCursor) as cursor:
+                    sql_select = 'SELECT * FROM Basedonne LIMIT %s OFFSET %s'
+                    await cursor.execute(sql_select, (limit, offset))
                     result = await cursor.fetchall()
-                    column_names = [desc[0] for desc in cursor.description]
-                    basedonne = [dict(zip(column_names, row)) for row in result]
+                    
+                    basedonne = []
+                    for row in result:
+                        try:
+                            row = {k: float(v) if isinstance(v, decimal.Decimal) else v for k, v in row.items()}
+                            row = {k: v.isoformat() if isinstance(v, (datetime, date)) else v for k, v in row.items()}
+                            basedonne.append(row)
+                        except Exception as e:
+                            logging.error(f"Error processing row: {e}")
+                            continue 
+
     except aiomysql.Error as e:
-        logging.error(f"Database error: {e}")
+        logging.error(f"Database error in get_basedonne: {e}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     except Exception as e:
-        logging.error(f"Unexpected error: {e}")
+        logging.error(f"Unexpected error in get_basedonne: {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred")
 
     return JSONResponse(content={'basedonne': basedonne})
