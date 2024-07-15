@@ -472,27 +472,30 @@ async def basedonne_insert_single(basedonne: BasedonneCreate):
 
 @app.get('/getBasedonne')
 async def get_basedonne():
+    try:
+        pool = await aiomysql.create_pool(
+            host=DB_CONFIG['host'],
+            port=DB_CONFIG['port'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            db=DB_CONFIG['db'],
+            ssl=DB_CONFIG['ssl'],
+            autocommit=DB_CONFIG['autocommit']
+        )
 
-    pool = await aiomysql.create_pool(
-        host = DB_CONFIG['host'],
-        port = DB_CONFIG['port'],
-        user = DB_CONFIG['user'],
-        password = DB_CONFIG['password'],
-        db = DB_CONFIG['db'],
-        ssl = DB_CONFIG['ssl'],
-        autocommit = DB_CONFIG['autocommit']
-    )
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                sql_select = 'SELECT * FROM Basedonne'
+                await cursor.execute(sql_select)
+                result = await cursor.fetchall()
+                column_names = [desc[0] for desc in cursor.description]
+                basedonne = [dict(zip(column_names, row)) for row in result]
 
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cursor:
-            sql_select = 'SELECT * FROM Basedonne'
-            await cursor.execute(sql_select)
-            result = await cursor.fetchall()
-            column_names = [desc[0] for desc in cursor.description]
-            basedonne = [dict(zip(column_names, row)) for row in result]
-    
+        pool.close()
+        await pool.wait_closed()
+
     except Exception as e:
-        raise HTTPException(status_code=500,detail=f"An error occurred while retrieving data from the contacts table: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data from the Basedonne table: {e}")
 
     return JSONResponse(content={'basedonne': basedonne})
 
