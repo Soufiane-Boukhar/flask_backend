@@ -475,7 +475,7 @@ async def basedonne_insert_single(basedonne: BasedonneCreate):
 class BasedonneResponse(BaseModel):
     status: str
     message: str
-    data: List[BasedonneItem]
+    data: List[BasedonneCreate]
 
 @app.get('/basedonneGetAll', response_model=BasedonneResponse)
 async def basedonne_get_all():
@@ -486,7 +486,6 @@ async def basedonne_get_all():
                     await cursor.execute('SELECT * FROM Basedonne')
                     results = await cursor.fetchall()
                     
-                    # Convert decimal.Decimal to float and handle date formatting
                     for result in results:
                         for key, value in result.items():
                             if isinstance(value, decimal.Decimal):
