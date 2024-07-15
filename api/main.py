@@ -472,47 +472,49 @@ async def basedonne_insert_single(basedonne: BasedonneCreate):
     return {"message": "Basedonne data inserted successfully"}
 
 
-class CustomJSONEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, decimal.Decimal):
-            return float(obj)
-        if isinstance(obj, datetime.date):
-            return obj.isoformat()
-        return super().default(obj)
+Certainly. I'll modify the code to match the structure you've provided. Here's the updated version for the basedonneGetAll endpoint:
+pythonCopyfrom fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+import aiomysql
+import logging
 
-@app.get('/basedonneGetAll')
+app = FastAPI()
+
+@app.get("/basedonneGetAll")
 async def basedonne_get_all():
     try:
-        pool_kwargs = {k: v for k, v in DB_CONFIG.items() if v is not None}
-        
-        pool = await aiomysql.create_pool(**pool_kwargs)
-        
-        async with pool.acquire() as conn:
-            async with conn.cursor(aiomysql.DictCursor) as cursor:
-                await cursor.execute('SELECT * FROM Basedonne')
-                results = await cursor.fetchall()
-                
-                serializable_results = json.loads(json.dumps(results, cls=CustomJSONEncoder))
-                
-                return JSONResponse(
-                    status_code=200,
-                    content={
-                        "status": "success",
-                        "message": "Data retrieved successfully",
-                        "data": serializable_results
-                    }
-                )
-                
-    except Exception as e:
-        logging.error(f"Error during database operation: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={
-                "status": "error",
-                "message": f"An error occurred while fetching basedonne data: {str(e)}",
-                "data": []
-            }
+        pool = await aiomysql.create_pool(
+            host=DB_CONFIG['host'],
+            port=DB_CONFIG['port'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            db=DB_CONFIG['db'],
+            ssl=DB_CONFIG['ssl'],
+            autocommit=DB_CONFIG['autocommit']
         )
+
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                sql_select = 'SELECT * FROM Basedonne'
+                await cursor.execute(sql_select)
+                results = await cursor.fetchall()
+
+                column_names = [desc[0] for desc in cursor.description]
+
+                basedonne_data = [dict(zip(column_names, row)) for row in results]
+
+                # Convert Decimal to float for JSON serialization
+                for item in basedonne_data:
+                    for key, value in item.items():
+                        if isinstance(value, decimal.Decimal):
+                            item[key] = float(value)
+
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data from the Basedonne table: {e}")
+
+    return JSONResponse(content={"basedonne": basedonne_data})
+    
 
 from fastapi.middleware.cors import CORSMiddleware
 
