@@ -524,6 +524,8 @@ class DecimalEncoder(json.JSONEncoder):
             return float(obj)
         if isinstance(obj, datetime):
             return obj.isoformat()
+        if isinstance(obj, date):
+            return obj.isoformat()
         return super(DecimalEncoder, self).default(obj)
 
 @app.get("/getAllSuiverProjet")
@@ -535,16 +537,13 @@ async def get_all_suiver_projet():
                 await cursor.execute('SELECT * FROM project_tracking')
                 results = await cursor.fetchall()
         
+        # Convert results to a list of dicts
         results_list = []
         for row in results:
             row_dict = dict(row)
-            for key, value in row_dict.items():
-                if isinstance(value, Decimal):
-                    row_dict[key] = float(value)
-                elif isinstance(value, datetime):
-                    row_dict[key] = value.isoformat()
             results_list.append(row_dict)
         
+        # Use custom JSON encoder to handle Decimal and date types
         json_compatible_results = json.dumps(results_list, cls=DecimalEncoder)
         
         return JSONResponse(content={"suiver_projets": json.loads(json_compatible_results)})
