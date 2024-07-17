@@ -525,7 +525,7 @@ class DecimalEncoder(json.JSONEncoder):
             return obj.isoformat()
         return super(DecimalEncoder, self).default(obj)
 
-@app.get("/getAllSuiverProjet")
+@app.get("/getAllSuiverProjet", response_model=List[SuiverResponse])
 async def get_all_suiver_projet():
     try:
         pool = await aiomysql.create_pool(**DB_CONFIG)
@@ -534,21 +534,19 @@ async def get_all_suiver_projet():
                 await cursor.execute('SELECT * FROM project_tracking')
                 results = await cursor.fetchall()
         
-        # Convert results to a list of dicts
-        results_list = []
+        suiver_projects = []
         for row in results:
-            row_dict = dict(row)
-            for key, value in row_dict.items():
+            suiver_dict = {}
+            for key, value in row.items():
                 if isinstance(value, Decimal):
-                    row_dict[key] = float(value)
+                    suiver_dict[key] = float(value)
                 elif isinstance(value, datetime):
-                    row_dict[key] = value.isoformat()
-            results_list.append(row_dict)
+                    suiver_dict[key] = value.isoformat()
+                else:
+                    suiver_dict[key] = value
+            suiver_projects.append(SuiverResponse(**suiver_dict))
         
-        # Use custom JSON encoder
-        json_compatible_results = json.loads(json.dumps(results_list, cls=DecimalEncoder))
-        
-        return JSONResponse(content={"suiver_projets": json_compatible_results})
+        return suiver_projects
     except Exception as e:
         logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {str(e)}")
