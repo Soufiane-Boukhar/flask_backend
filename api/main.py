@@ -508,7 +508,15 @@ async def get_all_suiver_projet():
         logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {str(e)}")
 
-
+def convert_to_serializable(value):
+    if isinstance(value, Decimal):
+        return float(value)
+    elif isinstance(value, datetime):
+        return value.isoformat()
+    elif isinstance(value, date):
+        return value.isoformat()
+    return value
+    
 @app.get("/getAllBasedonne")
 async def get_all_basedonne():
     try:
