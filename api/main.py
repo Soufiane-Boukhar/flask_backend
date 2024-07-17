@@ -521,14 +521,7 @@ async def get_all_basedonne():
         # Convert results to a JSON serializable format
         results_serializable = []
         for row in results:
-            row_serializable = {}
-            for key, value in row.items():
-                if isinstance(value, Decimal):
-                    row_serializable[key] = float(value)
-                elif isinstance(value, datetime):
-                    row_serializable[key] = value.isoformat()
-                else:
-                    row_serializable[key] = value
+            row_serializable = {key: convert_to_serializable(value) for key, value in row.items()}
             results_serializable.append(row_serializable)
         
         return JSONResponse(content={"basedonne": results_serializable})
