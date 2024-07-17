@@ -472,50 +472,25 @@ async def basedonne_insert_single(basedonne: BasedonneCreate):
     return {"message": "Basedonne data inserted successfully"}
 
 
-@app.get("/basedonneGetAll")
-async def basedonne_get_all():
+@app.get("/getAllBasedonne")
+async def get_all_basedonne():
     try:
-        pool = await aiomysql.create_pool(
-            host=DB_CONFIG['host'],
-            port=DB_CONFIG['port'],
-            user=DB_CONFIG['user'],
-            password=DB_CONFIG['password'],
-            db=DB_CONFIG['db'],
-            ssl=DB_CONFIG.get('ssl'),
-            autocommit=DB_CONFIG.get('autocommit', True)
-        )
-
+        pool = await aiomysql.create_pool(**DB_CONFIG)
         async with pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                sql_select = 'SELECT * FROM Basedonne'
-                await cursor.execute(sql_select)
+            async with conn.cursor(aiomysql.DictCursor) as cursor:
+                await cursor.execute('SELECT * FROM Basedonne')
                 results = await cursor.fetchall()
-
-                column_names = [desc[0] for desc in cursor.description]
-
-                basedonne_data = []
-                for row in results:
-                    item = {}
-                    for i, value in enumerate(row):
-                        if isinstance(value, decimal.Decimal):
-                            item[column_names[i]] = float(value)
-                        elif isinstance(value, bytes):
-                            item[column_names[i]] = value.decode('utf-8', errors='replace')
-                        else:
-                            item[column_names[i]] = value
-                    basedonne_data.append(item)
-
-        await pool.close()
-        return JSONResponse(content={"basedonne": basedonne_data})
-
-    except aiomysql.Error as db_error:
-        logger.error(f"Database error: {db_error}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Database error occurred: {str(db_error)}")
+        
+        # Convert Decimal to float for JSON serialization
+        for row in results:
+            for key, value in row.items():
+                if isinstance(value, decimal.Decimal):
+                    row[key] = float(value)
+        
+        return JSONResponse(content={"basedonne": results})
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+        logging.error(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {e}")
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -550,7 +525,7 @@ async def get_all_suiver_projet():
     except Exception as e:
         logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {str(e)}")
-        
+
 from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
