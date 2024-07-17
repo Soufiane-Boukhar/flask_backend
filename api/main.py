@@ -517,6 +517,14 @@ async def basedonne_get_all():
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super(DecimalEncoder, self).default(obj)
+
 @app.get("/getAllSuiverProjet")
 async def get_all_suiver_projet():
     try:
@@ -526,11 +534,25 @@ async def get_all_suiver_projet():
                 await cursor.execute('SELECT * FROM project_tracking')
                 results = await cursor.fetchall()
         
-        return JSONResponse(content={"suiver_projets": results})
+        # Convert results to a list of dicts
+        results_list = []
+        for row in results:
+            row_dict = dict(row)
+            for key, value in row_dict.items():
+                if isinstance(value, Decimal):
+                    row_dict[key] = float(value)
+                elif isinstance(value, datetime):
+                    row_dict[key] = value.isoformat()
+            results_list.append(row_dict)
+        
+        # Use custom JSON encoder
+        json_compatible_results = json.loads(json.dumps(results_list, cls=DecimalEncoder))
+        
+        return JSONResponse(content={"suiver_projets": json_compatible_results})
     except Exception as e:
         logging.error(f"Error: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {e}")
-        
+        raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {str(e)}")
+
 from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
