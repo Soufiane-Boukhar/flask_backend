@@ -472,25 +472,7 @@ async def basedonne_insert_single(basedonne: BasedonneCreate):
     return {"message": "Basedonne data inserted successfully"}
 
 
-@app.get("/getAllBasedonne")
-async def get_all_basedonne():
-    try:
-        pool = await aiomysql.create_pool(**DB_CONFIG)
-        async with pool.acquire() as conn:
-            async with conn.cursor(aiomysql.DictCursor) as cursor:
-                await cursor.execute('SELECT * FROM Basedonne')
-                results = await cursor.fetchall()
-        
-        # Convert Decimal to float for JSON serialization
-        for row in results:
-            for key, value in row.items():
-                if isinstance(value, decimal.Decimal):
-                    row[key] = float(value)
-        
-        return JSONResponse(content={"basedonne": results})
-    except Exception as e:
-        logging.error(f"Error: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {e}")
+
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -525,6 +507,35 @@ async def get_all_suiver_projet():
     except Exception as e:
         logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {str(e)}")
+
+
+@app.get("/getAllBasedonne")
+async def get_all_basedonne():
+    try:
+        pool = await aiomysql.create_pool(**DB_CONFIG)
+        async with pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cursor:
+                await cursor.execute('SELECT * FROM Basedonne')
+                results = await cursor.fetchall()
+        
+        # Convert results to a JSON serializable format
+        results_serializable = []
+        for row in results:
+            row_serializable = {}
+            for key, value in row.items():
+                if isinstance(value, Decimal):
+                    row_serializable[key] = float(value)
+                elif isinstance(value, datetime):
+                    row_serializable[key] = value.isoformat()
+                else:
+                    row_serializable[key] = value
+            results_serializable.append(row_serializable)
+        
+        return JSONResponse(content={"basedonne": results_serializable})
+    
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {e}")
 
 from fastapi.middleware.cors import CORSMiddleware
 
