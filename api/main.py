@@ -481,7 +481,7 @@ class DecimalEncoder(json.JSONEncoder):
             return float(obj)
         if isinstance(obj, datetime):
             return obj.isoformat()
-        if isinstance(obj, date):  # Handle `date` objects
+        if isinstance(obj, date): 
             return obj.isoformat()
         return super(DecimalEncoder, self).default(obj)
 
@@ -494,13 +494,11 @@ async def get_all_suiver_projet():
                 await cursor.execute('SELECT * FROM project_tracking')
                 results = await cursor.fetchall()
         
-        # Convert results to a list of dicts
         results_list = []
         for row in results:
             row_dict = dict(row)
             results_list.append(row_dict)
         
-        # Use custom JSON encoder to handle Decimal and date types
         json_compatible_results = json.dumps(results_list, cls=DecimalEncoder)
         
         return JSONResponse(content={"suiver_projets": json.loads(json_compatible_results)})
@@ -516,7 +514,7 @@ def convert_to_serializable(value):
     elif isinstance(value, date):
         return value.isoformat()
     return value
-    
+
 @app.get("/getAllBasedonne")
 async def get_all_basedonne():
     try:
@@ -526,7 +524,6 @@ async def get_all_basedonne():
                 await cursor.execute('SELECT * FROM Basedonne')
                 results = await cursor.fetchall()
         
-        # Convert results to a JSON serializable format
         results_serializable = []
         for row in results:
             row_serializable = {key: convert_to_serializable(value) for key, value in row.items()}
