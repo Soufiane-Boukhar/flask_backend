@@ -12,7 +12,7 @@ from typing import Optional, List, Union
 import pandas as pd
 import io
 import re
-import decimal
+from decimal import Decimal
 import json
 
 
@@ -517,6 +517,7 @@ async def basedonne_get_all():
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
+
 class DecimalEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Decimal):
@@ -534,7 +535,6 @@ async def get_all_suiver_projet():
                 await cursor.execute('SELECT * FROM project_tracking')
                 results = await cursor.fetchall()
         
-        # Convert results to a list of dicts
         results_list = []
         for row in results:
             row_dict = dict(row)
@@ -545,10 +545,9 @@ async def get_all_suiver_projet():
                     row_dict[key] = value.isoformat()
             results_list.append(row_dict)
         
-        # Use custom JSON encoder
-        json_compatible_results = json.loads(json.dumps(results_list, cls=DecimalEncoder))
+        json_compatible_results = json.dumps(results_list, cls=DecimalEncoder)
         
-        return JSONResponse(content={"suiver_projets": json_compatible_results})
+        return JSONResponse(content={"suiver_projets": json.loads(json_compatible_results)})
     except Exception as e:
         logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {str(e)}")
