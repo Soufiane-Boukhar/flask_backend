@@ -481,7 +481,7 @@ async def basedonne_get_all():
             user=DB_CONFIG['user'],
             password=DB_CONFIG['password'],
             db=DB_CONFIG['db'],
-            ssl=DB_CONFIG.get('ssl'),  # Use .get() in case 'ssl' is not in DB_CONFIG
+            ssl=DB_CONFIG.get('ssl'),
             autocommit=DB_CONFIG.get('autocommit', True)
         )
 
@@ -517,6 +517,20 @@ async def basedonne_get_all():
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
+@app.get("/getAllSuiverProjet")
+async def get_all_suiver_projet():
+    try:
+        pool = await aiomysql.create_pool(**DB_CONFIG)
+        async with pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cursor:
+                await cursor.execute('SELECT * FROM project_tracking')
+                results = await cursor.fetchall()
+        
+        return JSONResponse(content={"suiver_projets": results})
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {e}")
+        
 from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
