@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 import hmac
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import Optional, List, Union
 import pandas as pd
 import io
@@ -524,7 +524,7 @@ class DecimalEncoder(json.JSONEncoder):
             return float(obj)
         if isinstance(obj, datetime):
             return obj.isoformat()
-        if isinstance(obj, date):
+        if isinstance(obj, date):  # Handle `date` objects
             return obj.isoformat()
         return super(DecimalEncoder, self).default(obj)
 
@@ -550,7 +550,7 @@ async def get_all_suiver_projet():
     except Exception as e:
         logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {str(e)}")
-
+        
 from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
