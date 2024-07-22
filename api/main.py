@@ -90,6 +90,28 @@ class SuiverCreate(BaseModel):
     created_date: Optional[str] = None
     update_date: Optional[str] = None
 
+class ProjectUpdate(BaseModel):
+    representant: Optional[str] = None
+    nom: Optional[str] = None
+    mode_retour: Optional[str] = None
+    activite: Optional[str] = None
+    contact: Optional[str] = None
+    type_bien: Optional[str] = None
+    action: Optional[str] = None
+    budget: Optional[float] = None
+    superficie: Optional[float] = None
+    zone: Optional[str] = None
+    type_accompagnement: Optional[str] = None
+    prix_alloue: Optional[float] = None
+    services_clotures: Optional[str] = None
+    services_a_cloturer: Optional[str] = None
+    ok_nok: Optional[str] = None
+    annexes: Optional[str] = None
+    ca_previsionnel: Optional[float] = None
+    ca_realise: Optional[float] = None
+    total_ca: Optional[float] = None
+    status: Optional[str] = None
+    
 class BasedonneCreate(BaseModel):
     Type_de_bien: Optional[str]
     Action_commerciale: Optional[str]
@@ -295,6 +317,48 @@ async def register_suiver(suiver: SuiverCreate):
 
     return JSONResponse(content={"message": "Project registered successfully"})
 
+
+
+@app.put('/updateProject/{project_id}')
+async def update_project(project_id: int = Path(..., title="The ID of the project to update"), project: ProjectUpdate):
+    try:
+        async with aiomysql.create_pool(**DB_CONFIG) as pool:
+            async with pool.acquire() as conn:
+                async with conn.cursor() as cursor:
+                    # Check if the project exists
+                    await cursor.execute('SELECT COUNT(*) FROM project_tracking WHERE id=%s', (project_id,))
+                    count = await cursor.fetchone()
+                    if count[0] == 0:
+                        raise HTTPException(status_code=404, detail="Project not found")
+
+                    # Prepare the update query
+                    update_fields = []
+                    update_values = []
+                    for field, value in project.dict(exclude_unset=True).items():
+                        if value is not None:
+                            update_fields.append(f"{field}=%s")
+                            update_values.append(value)
+
+                    if not update_fields:
+                        return {"message": "No fields to update"}
+
+                    update_fields.append("update_date=%s")
+                    update_values.append(datetime.now())
+
+                    # Construct and execute the update query
+                    query = f"UPDATE project_tracking SET {', '.join(update_fields)} WHERE id=%s"
+                    update_values.append(project_id)
+                    await cursor.execute(query, update_values)
+                    await conn.commit()
+
+                    if cursor.rowcount == 0:
+                        raise HTTPException(status_code=400, detail="Update failed")
+
+    except Exception as e:
+        logging.error(f"Error during database operation: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while updating the project: {e}")
+
+    return {"message": "Project updated successfully"}
 
 
 @app.delete('/deleteProject/{project_id}')
