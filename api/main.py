@@ -268,6 +268,7 @@ async def register_suiver(suiver: SuiverCreate):
 
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
+                current_datetime = datetime.now()
                 await cursor.execute(
                     '''
                     INSERT INTO project_tracking (
@@ -282,7 +283,7 @@ async def register_suiver(suiver: SuiverCreate):
                         suiver.type_bien, suiver.action, suiver.budget, suiver.superficie, suiver.zone,
                         suiver.type_accompagnement, suiver.prix_alloue, suiver.services_clotures,
                         suiver.services_a_cloturer, suiver.ok_nok, suiver.annexes, suiver.ca_previsionnel,
-                        suiver.ca_realise, suiver.total_ca, suiver.status, suiver.created_date, suiver.update_date
+                        suiver.ca_realise, suiver.total_ca, suiver.status, current_datetime, suiver.update_date
                     )
                 )
 
@@ -293,6 +294,7 @@ async def register_suiver(suiver: SuiverCreate):
         raise HTTPException(status_code=500, detail=f"An error occurred while registering the project: {e}")
 
     return JSONResponse(content={"message": "Project registered successfully"})
+
 
 
 @app.delete('/deleteProject/{project_id}')
