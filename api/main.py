@@ -14,7 +14,12 @@ import io
 import re
 from decimal import Decimal
 import json
-
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.future import select
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
 app = FastAPI()
 
@@ -302,48 +307,22 @@ async def update_suiver_projet(
     project_id: int = Path(..., title="The ID of the project to update"),
     suiver_update: SuiverCreate
 ):
-    try:
-        # Create a connection pool
-        pool = await aiomysql.create_pool(**DB_CONFIG)
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                # Check if the project exists
-                await cursor.execute('SELECT COUNT(*) FROM project_tracking WHERE id=%s', (project_id,))
-                count = await cursor.fetchone()
-                if count[0] == 0:
-                    raise HTTPException(status_code=404, detail="Project not found")
-
-                # Build the dynamic update query
-                update_fields = []
-                update_values = []
-                
-                for field, value in suiver_update.dict(exclude_unset=True).items():
-                    if value is not None:
-                        # Use appropriate column names (avoid using backticks if unnecessary)
-                        update_fields.append(f"{field} = %s")
-                        update_values.append(value)
-
-                if not update_fields:
-                    raise HTTPException(status_code=400, detail="No fields to update")
-
-                # Append the project_id for the WHERE clause
-                update_values.append(project_id)
-                
-                # Construct the SQL query
-                update_query = f"UPDATE project_tracking SET {', '.join(update_fields)}, update_date = NOW() WHERE id = %s"
-                
-                # Print the query and values for debugging
-                logging.info(f"Executing query: {update_query}")
-                logging.info(f"With values: {update_values}")
-                
-                # Execute the update query
-                await cursor.execute(update_query, update_values)
-                await conn.commit()
-
-    except Exception as e:
-        logging.error(f"Error during update operation: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred while updating the project: {e}")
-
+    async with SessionLocal() as session:
+        async with session.begin():
+            # Check if the project exists
+            result = await session.execute(select(ProjectTracking).filter_by(id=project_id))
+            project = result.scalars().first()
+            if not project:
+                raise HTTPException(status_code=404, detail="Project not found")
+            
+            # Update fields
+            for field, value in suiver_update.dict(exclude_unset=True).items():
+                if value is not None:
+                    setattr(project, field, value)
+            
+            project.update_date = datetime.utcnow()
+            await session.commit()
+    
     return {"message": "Suiver project updated successfully"}
 
 
