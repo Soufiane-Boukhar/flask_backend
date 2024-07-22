@@ -329,24 +329,28 @@ async def update_suiver_projet(
         pool = await aiomysql.create_pool(**DB_CONFIG)
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
+                # Check if the project exists
                 await cursor.execute('SELECT COUNT(*) FROM project_tracking WHERE id=%s', (project_id,))
                 count = await cursor.fetchone()
                 if count[0] == 0:
                     raise HTTPException(status_code=404, detail="Project not found")
 
+                # Build the dynamic update query
                 update_fields = []
                 update_values = []
                 
                 for field, value in suiver_update.dict(exclude_unset=True).items():
                     if value is not None:
-                        update_fields.append(f"{field} = %s")
+                        # Ensure that the field is a valid column in the database
+                        update_fields.append(f"`{field}` = %s")
                         update_values.append(value)
 
                 if not update_fields:
                     raise HTTPException(status_code=400, detail="No fields to update")
 
                 update_values.append(project_id)
-                update_query = f"UPDATE project_tracking SET {', '.join(update_fields)}, update_date = %s WHERE id = %s"
+                
+                update_query = f"UPDATE project_tracking SET {', '.join(update_fields)}, update_date = NOW() WHERE id = %s"
 
                 await cursor.execute(update_query, update_values)
                 await conn.commit()
