@@ -14,12 +14,7 @@ import io
 import re
 from decimal import Decimal
 import json
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.future import select
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+
 
 app = FastAPI()
 
@@ -299,31 +294,6 @@ async def register_suiver(suiver: SuiverCreate):
         raise HTTPException(status_code=500, detail=f"An error occurred while registering the project: {e}")
 
     return JSONResponse(content={"message": "Project registered successfully"})
-
-
-
-@app.put('/updateSuiverProjet/{project_id}')
-async def update_suiver_projet(
-    project_id: int = Path(..., title="The ID of the project to update"),
-    suiver_update: SuiverCreate
-):
-    async with SessionLocal() as session:
-        async with session.begin():
-            # Check if the project exists
-            result = await session.execute(select(ProjectTracking).filter_by(id=project_id))
-            project = result.scalars().first()
-            if not project:
-                raise HTTPException(status_code=404, detail="Project not found")
-            
-            # Update fields
-            for field, value in suiver_update.dict(exclude_unset=True).items():
-                if value is not None:
-                    setattr(project, field, value)
-            
-            project.update_date = datetime.utcnow()
-            await session.commit()
-    
-    return {"message": "Suiver project updated successfully"}
 
 
 @app.delete('/deleteProject/{project_id}')
