@@ -295,6 +295,27 @@ async def register_suiver(suiver: SuiverCreate):
     return JSONResponse(content={"message": "Project registered successfully"})
 
 
+@app.delete('/deleteProject/{project_id}')
+async def delete_project(project_id: int = Path(..., title="The ID of the project to delete")):
+    try:
+        async with aiomysql.create_pool(**DB_CONFIG) as pool:
+            async with pool.acquire() as conn:
+                async with conn.cursor() as cursor:
+                    # Check if the project exists
+                    await cursor.execute('SELECT COUNT(*) FROM project_tracking WHERE id=%s', (project_id,))
+                    count = await cursor.fetchone()
+                    if count[0] == 0:
+                        raise HTTPException(status_code=404, detail="Project not found")
+
+                    # Delete the project
+                    await cursor.execute('DELETE FROM project_tracking WHERE id=%s', (project_id,))
+                    await conn.commit()
+
+    except Exception as e:
+        logging.error(f"Error during database operation: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while deleting the project: {e}")
+
+    return {"message": "Project deleted successfully"}
 
 
 def clean_budget(budget_str: str) -> float:
