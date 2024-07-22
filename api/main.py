@@ -319,8 +319,8 @@ async def update_suiver_projet(
                 
                 for field, value in suiver_update.dict(exclude_unset=True).items():
                     if value is not None:
-                        # Ensure that the field is a valid column in the database
-                        update_fields.append(f"`{field}` = %s")
+                        # Use appropriate column names (avoid using backticks if unnecessary)
+                        update_fields.append(f"{field} = %s")
                         update_values.append(value)
 
                 if not update_fields:
