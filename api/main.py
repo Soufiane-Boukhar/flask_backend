@@ -320,53 +320,41 @@ async def delete_project(project_id: int = Path(..., title="The ID of the projec
     return {"message": "Project deleted successfully"}
 
 
-@app.put('/updateProject/{project_id}')
-async def update_project(
+@app.put('/updateSuiverProjet/{project_id}')
+async def update_suiver_projet(
     project_id: int = Path(..., title="The ID of the project to update"),
-    suiver_update: SuiverUpdate = Body(...)
+    suiver_update: SuiverCreate
 ):
     try:
-        async with aiomysql.create_pool(**DB_CONFIG) as pool:
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cursor:
-                    # Check if the project exists
-                    await cursor.execute('SELECT COUNT(*) FROM project_tracking WHERE id=%s', (project_id,))
-                    count = await cursor.fetchone()
-                    if count[0] == 0:
-                        raise HTTPException(status_code=404, detail="Project not found")
-                    
-                    # Build the update query dynamically
-                    update_fields = []
-                    update_values = []
-                    
-                    for field, value in suiver_update.dict(exclude_unset=True).items():
-                        if value is not None:
-                            # Ensure the field name matches the column name in the database
-                            update_fields.append(f"{field} = %s")
-                            update_values.append(value)
+        pool = await aiomysql.create_pool(**DB_CONFIG)
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute('SELECT COUNT(*) FROM project_tracking WHERE id=%s', (project_id,))
+                count = await cursor.fetchone()
+                if count[0] == 0:
+                    raise HTTPException(status_code=404, detail="Project not found")
 
-                    if not update_fields:
-                        raise HTTPException(status_code=400, detail="No fields to update")
+                update_fields = []
+                update_values = []
+                
+                for field, value in suiver_update.dict(exclude_unset=True).items():
+                    if value is not None:
+                        update_fields.append(f"{field} = %s")
+                        update_values.append(value)
 
-                    # Add update_date to the end of the query and append the project_id for the WHERE clause
-                    update_values.append(datetime.now())
-                    update_values.append(project_id)
-                    
-                    update_query = f"UPDATE project_tracking SET {', '.join(update_fields)}, update_date = %s WHERE id = %s"
-                    
-                    # Log the generated query and values
-                    logging.debug(f"Update Query: {update_query}")
-                    logging.debug(f"Update Values: {update_values}")
+                if not update_fields:
+                    raise HTTPException(status_code=400, detail="No fields to update")
 
-                    await cursor.execute(update_query, update_values)
-                    await conn.commit()
+                update_values.append(project_id)
+                update_query = f"UPDATE project_tracking SET {', '.join(update_fields)}, update_date = %s WHERE id = %s"
 
+                await cursor.execute(update_query, update_values)
+                await conn.commit()
     except Exception as e:
-        logging.error(f"Error during update operation: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred while updating the project: {e}")
+        logging.error(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while updating the Suiver project: {e}")
 
-    return {"message": "Project updated successfully"}
-
+    return {"message": "Suiver project updated successfully"}
     
 
 def clean_budget(budget_str: str) -> float:
