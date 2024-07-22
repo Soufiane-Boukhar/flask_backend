@@ -320,49 +320,7 @@ async def delete_project(project_id: int = Path(..., title="The ID of the projec
     return {"message": "Project deleted successfully"}
 
 
-@app.put('/updateSuiverProjet/{project_id}')
-async def update_suiver_projet(
-    project_id: int = Path(..., title="The ID of the project to update"),
-    suiver_update: SuiverCreate
-):
-    try:
-        # Create a connection pool
-        pool = await aiomysql.create_pool(**DB_CONFIG)
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                # Check if the project exists
-                await cursor.execute('SELECT COUNT(*) FROM project_tracking WHERE id=%s', (project_id,))
-                count = await cursor.fetchone()
-                if count[0] == 0:
-                    raise HTTPException(status_code=404, detail="Project not found")
 
-                # Build the dynamic update query
-                update_fields = []
-                update_values = []
-
-                for field, value in suiver_update.dict(exclude_unset=True).items():
-                    if value is not None:
-                        update_fields.append(f"{field} = %s")
-                        update_values.append(value)
-
-                if not update_fields:
-                    raise HTTPException(status_code=400, detail="No fields to update")
-
-                # Append the project_id for the WHERE clause
-                update_values.append(project_id)
-                
-                # Construct the SQL query
-                update_query = f"UPDATE project_tracking SET {', '.join(update_fields)}, update_date = NOW() WHERE id = %s"
-                
-                # Execute the update query
-                await cursor.execute(update_query, update_values)
-                await conn.commit()
-
-    except Exception as e:
-        logging.error(f"Error during update operation: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred while updating the project: {e}")
-
-    return {"message": "Suiver project updated successfully"}
 
     
 
