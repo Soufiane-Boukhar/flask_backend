@@ -21,11 +21,11 @@ app = FastAPI()
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 DB_CONFIG = {
-    'host': 'mysql-1fb82b3b-boukhar-d756.e.aivencloud.com',
-    'port': 20744,
-    'user': 'avnadmin',
-    'password': 'AVNS_wWoRjEZRmFF5NgjGCcY',
-    'db': 'defaultdb',
+    'host': '',
+    'port': ,
+    'user': '',
+    'password': '',
+    'db': '',
     'ssl': None,
     'autocommit': True,
 }
